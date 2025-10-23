@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { getCurrentUser, type UserSummary } from '../api/users'
 import Loading from '../components/Loading'
+import LogoutButton from '../components/LogoutButton'
 
 const Dashboard = () => {
   const { user } = useAuth0()
@@ -50,6 +51,7 @@ const Dashboard = () => {
         <p>
           Sesión iniciada como <strong>{user?.name ?? user?.email}</strong>.
         </p>
+        <LogoutButton className="button" />
         {profile && (
           <ul>
             <li>Nombre: {profile.name}</li>

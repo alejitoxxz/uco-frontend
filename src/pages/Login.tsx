@@ -16,6 +16,9 @@ const Login = () => {
           returnTo,
           target: returnTo,
         },
+        authorizationParams: {
+          prompt: 'select_account',
+        },
       })
     }
   }, [isAuthenticated, isLoading, location.state, loginWithRedirect])

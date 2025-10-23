@@ -52,6 +52,28 @@ body {
   text-decoration: underline;
 }
 
+.button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 24px -12px rgba(37, 99, 235, 0.6);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px -16px rgba(37, 99, 235, 0.7);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
 .loading {
   display: flex;
   flex-direction: column;

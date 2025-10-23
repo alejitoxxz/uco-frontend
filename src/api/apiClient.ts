@@ -19,7 +19,24 @@ export const getApiClient = () => {
   return client
 }
 
-export const attachTokenInterceptor = (getAccessTokenSilently: GetAccessToken, options?: GetTokenSilentlyOptions) => {
+const getDefaultTokenOptions = (options?: GetTokenSilentlyOptions): GetTokenSilentlyOptions => {
+  const audience = import.meta.env.VITE_AUTH0_AUDIENCE
+  const scope = import.meta.env.VITE_AUTH0_SCOPE ?? 'openid profile email'
+
+  return {
+    ...options,
+    authorizationParams: {
+      audience,
+      scope,
+      ...options?.authorizationParams,
+    },
+  }
+}
+
+export const attachTokenInterceptor = (
+  getAccessTokenSilently: GetAccessToken,
+  options?: GetTokenSilentlyOptions,
+) => {
   const apiClient = getApiClient()
 
   if (interceptorId !== null) {
@@ -28,7 +45,8 @@ export const attachTokenInterceptor = (getAccessTokenSilently: GetAccessToken, o
 
   interceptorId = apiClient.interceptors.request.use(async (config: AxiosRequestConfig) => {
     try {
-      const token = await getAccessTokenSilently(options)
+      const tokenOptions = getDefaultTokenOptions(options)
+      const token = await getAccessTokenSilently(tokenOptions)
       if (token) {
         config.headers = {
           ...config.headers,

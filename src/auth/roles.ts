@@ -6,17 +6,15 @@ export enum Roles {
   Viewer = 'viewer',
 }
 
-const DEFAULT_NAMESPACE = 'https://example.com/roles'
-
-const getRolesNamespace = () => import.meta.env.VITE_AUTH0_ROLES_NAMESPACE ?? DEFAULT_NAMESPACE
+export const ROLES_NAMESPACE = 'https://uco-challenge'
+export const ROLES_CLAIM = `${ROLES_NAMESPACE}/roles`
 
 export const getUserRoles = (user?: User | null): string[] => {
   if (!user) {
     return []
   }
 
-  const namespace = getRolesNamespace()
-  const rolesClaim = user[namespace]
+  const rolesClaim = user[ROLES_CLAIM]
 
   if (Array.isArray(rolesClaim)) {
     return rolesClaim.filter((role): role is string => typeof role === 'string')

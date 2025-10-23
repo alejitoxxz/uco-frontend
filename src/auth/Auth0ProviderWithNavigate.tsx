@@ -21,10 +21,11 @@ const Auth0ProviderWithNavigate = ({ children }: Auth0ProviderWithNavigateProps)
   const domain = getEnv('VITE_AUTH0_DOMAIN')
   const clientId = getEnv('VITE_AUTH0_CLIENT_ID')
   const audience = getEnv('VITE_AUTH0_AUDIENCE')
+  const scope = getEnv('VITE_AUTH0_SCOPE') ?? 'openid profile email'
 
   const onRedirectCallback = useCallback(
     (appState?: AppState) => {
-      const targetUrl = appState?.returnTo ?? window.location.pathname
+      const targetUrl = appState?.returnTo ?? appState?.target ?? window.location.pathname
       navigate(targetUrl, { replace: true })
     },
     [navigate],
@@ -41,10 +42,11 @@ const Auth0ProviderWithNavigate = ({ children }: Auth0ProviderWithNavigateProps)
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: audience ?? undefined,
+        scope,
       }}
       onRedirectCallback={onRedirectCallback}
-      cacheLocation={import.meta.env.VITE_AUTH0_CACHE_LOCATION ?? 'memory'}
-      useRefreshTokens={import.meta.env.VITE_AUTH0_USE_REFRESH_TOKENS === 'true'}
+      cacheLocation="localstorage"
+      useRefreshTokens
     >
       {children}
     </Auth0Provider>

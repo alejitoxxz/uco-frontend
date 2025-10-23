@@ -10,9 +10,11 @@ const Login = () => {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      const returnTo = (location.state as { from?: Location })?.from?.pathname ?? '/'
       void loginWithRedirect({
         appState: {
-          returnTo: (location.state as { from?: Location })?.from?.pathname ?? '/',
+          returnTo,
+          target: returnTo,
         },
       })
     }

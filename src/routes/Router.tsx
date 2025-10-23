@@ -3,9 +3,10 @@ import Home from '../pages/Home'
 import Login from '../pages/Login'
 import Dashboard from '../pages/Dashboard'
 import NotAuthorized from '../pages/NotAuthorized'
-import ProtectedRoute from './ProtectedRoute'
 import RoleGuard from './RoleGuard'
 import { Roles } from '../auth/roles'
+
+const ADMIN_ROLES = [Roles.Admin, Roles.Manager]
 
 const AppRouter = () => (
   <Routes>
@@ -14,11 +15,9 @@ const AppRouter = () => (
     <Route
       path="/dashboard"
       element={
-        <ProtectedRoute>
-          <RoleGuard allowedRoles={[Roles.Admin, Roles.Manager]}>
-            <Dashboard />
-          </RoleGuard>
-        </ProtectedRoute>
+        <RoleGuard allowed={ADMIN_ROLES}>
+          <Dashboard />
+        </RoleGuard>
       }
     />
     <Route path="/not-authorized" element={<NotAuthorized />} />

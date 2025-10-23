@@ -43,6 +43,7 @@ const Auth0ProviderWithNavigate = ({ children }: Auth0ProviderWithNavigateProps)
         redirect_uri: window.location.origin,
         audience: audience ?? undefined,
         scope,
+        prompt: 'select_account',
       }}
       onRedirectCallback={onRedirectCallback}
       cacheLocation="localstorage"

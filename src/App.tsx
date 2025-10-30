@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
+import { Outlet } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
-import AppRouter from './routes/Router'
 import { attachTokenInterceptor } from './api/apiClient'
 import './App.css'
 
@@ -11,7 +11,7 @@ const App = () => {
     attachTokenInterceptor(getAccessTokenSilently)
   }, [getAccessTokenSilently])
 
-  return <AppRouter />
+  return <Outlet />
 }
 
 export default App

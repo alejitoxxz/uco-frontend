@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUser, type CreateUserRequest } from '../../api/users'
 import { getCities, getCountries, getDepartments, type City, type Country, type Department } from '../../api/locations'
@@ -18,6 +19,7 @@ export default function UserCreatePage() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [locationsError, setLocationsError] = useState<string | null>(null)
+  const [failedRequest, setFailedRequest] = useState<'countries' | 'departments' | 'cities' | null>(null)
 
   const [countries, setCountries] = useState<Country[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
@@ -39,6 +41,7 @@ export default function UserCreatePage() {
     let active = true
     setLoadingCountries(true)
     setLocationsError(null)
+    setFailedRequest(null)
     ;(async () => {
       try {
         const res = await getCountries()
@@ -46,8 +49,12 @@ export default function UserCreatePage() {
         setCountries(res)
       } catch (error) {
         console.error(error)
+        if (isAxiosError(error)) {
+          console.error(error.response?.data)
+        }
         if (!active) return
-        setLocationsError('No se pudieron cargar los países disponibles. Inténtalo de nuevo.')
+        setLocationsError('No se pudieron cargar los países. Inténtalo de nuevo.')
+        setFailedRequest('countries')
       } finally {
         if (!active) return
         setLoadingCountries(false)
@@ -70,6 +77,7 @@ export default function UserCreatePage() {
     let active = true
     setLoadingDepartments(true)
     setLocationsError(null)
+    setFailedRequest(null)
     setDepartments([])
     setCities([])
     setFormState((state) => ({ ...state, homeCity: '' }))
@@ -80,8 +88,12 @@ export default function UserCreatePage() {
         setDepartments(res)
       } catch (error) {
         console.error(error)
+        if (isAxiosError(error)) {
+          console.error(error.response?.data)
+        }
         if (!active) return
-        setLocationsError('No se pudieron cargar los departamentos seleccionados. Intenta nuevamente.')
+        setLocationsError('No se pudieron cargar los departamentos. Inténtalo de nuevo.')
+        setFailedRequest('departments')
       } finally {
         if (!active) return
         setLoadingDepartments(false)
@@ -103,6 +115,7 @@ export default function UserCreatePage() {
     let active = true
     setLoadingCities(true)
     setLocationsError(null)
+    setFailedRequest(null)
     setCities([])
     setFormState((state) => ({ ...state, homeCity: '' }))
     ;(async () => {
@@ -112,8 +125,12 @@ export default function UserCreatePage() {
         setCities(res)
       } catch (error) {
         console.error(error)
+        if (isAxiosError(error)) {
+          console.error(error.response?.data)
+        }
         if (!active) return
-        setLocationsError('No se pudieron cargar las ciudades seleccionadas. Revisa tu conexión.')
+        setLocationsError('No se pudieron cargar las ciudades. Inténtalo de nuevo.')
+        setFailedRequest('cities')
       } finally {
         if (!active) return
         setLoadingCities(false)
@@ -133,6 +150,7 @@ export default function UserCreatePage() {
   const handleCountryChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const { value } = event.target
     setLocationsError(null)
+    setFailedRequest(null)
     setSelectedCountry(value)
     setSelectedDepartment('')
   }
@@ -140,27 +158,29 @@ export default function UserCreatePage() {
   const handleDepartmentChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const { value } = event.target
     setLocationsError(null)
+    setFailedRequest(null)
     setSelectedDepartment(value)
   }
 
   const handleCityChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const { value } = event.target
     setLocationsError(null)
+    setFailedRequest(null)
     setFormState((state) => ({ ...state, homeCity: value }))
   }
 
   const handleRetryLocations = () => {
-    if (!selectedCountry) {
-      setCountryRequestId((id) => id + 1)
-      return
-    }
-
-    if (!selectedDepartment) {
+    if (failedRequest === 'departments') {
       setDepartmentRequestId((id) => id + 1)
       return
     }
 
-    setCityRequestId((id) => id + 1)
+    if (failedRequest === 'cities') {
+      setCityRequestId((id) => id + 1)
+      return
+    }
+
+    setCountryRequestId((id) => id + 1)
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -187,6 +207,9 @@ export default function UserCreatePage() {
       navigate('/users', { replace: true })
     } catch (error) {
       console.error(error)
+      if (isAxiosError(error)) {
+        console.error(error.response?.data)
+      }
       setErr('No se pudo crear el usuario. Revisa los permisos y la información ingresada.')
     } finally {
       setSaving(false)
@@ -288,6 +311,7 @@ export default function UserCreatePage() {
               value={selectedCountry}
               onChange={handleCountryChange}
               disabled={loadingCountries || countries.length === 0}
+              aria-busy={loadingCountries}
               required
             >
               <option value="">
@@ -308,6 +332,7 @@ export default function UserCreatePage() {
               value={selectedDepartment}
               onChange={handleDepartmentChange}
               disabled={!selectedCountry || loadingDepartments || departments.length === 0}
+              aria-busy={loadingDepartments}
               required
             >
               <option value="">
@@ -332,6 +357,7 @@ export default function UserCreatePage() {
               value={formState.homeCity}
               onChange={handleCityChange}
               disabled={!selectedDepartment || loadingCities || cities.length === 0}
+              aria-busy={loadingCities}
               required
             >
               <option value="">

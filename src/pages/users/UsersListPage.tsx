@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getUsers, type UsersPage } from '../../api/users'
+import { isAxiosError } from 'axios'
+import {
+  confirmUserEmail,
+  confirmUserMobile,
+  getUsers,
+  type UserSummary,
+  type UsersPage,
+} from '../../api/users'
 import EmptyState from '../../components/ui/EmptyState'
 import ErrorAlert from '../../components/ui/ErrorAlert'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -31,6 +38,9 @@ const UsersListPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshIndex, setRefreshIndex] = useState(0)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [emailLoading, setEmailLoading] = useState<Record<string, boolean>>({})
+  const [mobileLoading, setMobileLoading] = useState<Record<string, boolean>>({})
 
   const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
   const size = useMemo(() => sanitizeSize(searchParams.get('size')), [searchParams])
@@ -60,6 +70,7 @@ const UsersListPage = () => {
     const load = async () => {
       setLoading(true)
       setError(null)
+      setFeedback(null)
 
       try {
         const response = await getUsers({ page, size })
@@ -68,6 +79,9 @@ const UsersListPage = () => {
         }
       } catch (err) {
         console.error(err)
+        if (isAxiosError(err)) {
+          console.error(err.response?.data)
+        }
         if (!cancelled) {
           setError('No se pudo cargar la lista de usuarios. Intenta nuevamente en unos segundos.')
           setData(null)
@@ -107,6 +121,86 @@ const UsersListPage = () => {
   const totalUsers = data?.totalElements ?? 0
   const users = data?.users ?? []
 
+  useEffect(() => {
+    if (!feedback) return
+
+    const timeout = setTimeout(() => {
+      setFeedback(null)
+    }, 5000)
+
+    return () => {
+      clearTimeout(timeout)
+    }
+  }, [feedback])
+
+  const handleConfirmEmail = async (user: UserSummary) => {
+    const userId = user.id
+    if (emailLoading[userId] || user.emailConfirmed) return
+
+    setEmailLoading((prev) => ({ ...prev, [userId]: true }))
+    setFeedback(null)
+
+    try {
+      await confirmUserEmail(userId)
+      setData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          users: prev.users.map((item) =>
+            item.id === userId ? { ...item, emailConfirmed: true } : item
+          ),
+        }
+      })
+      setFeedback({ type: 'success', message: 'Correo confirmado' })
+    } catch (err) {
+      console.error(err)
+      if (isAxiosError(err)) {
+        console.error(err.response?.data)
+      }
+      setFeedback({ type: 'error', message: 'No se pudo confirmar el correo. Inténtalo de nuevo.' })
+    } finally {
+      setEmailLoading((prev) => {
+        const next = { ...prev }
+        delete next[userId]
+        return next
+      })
+    }
+  }
+
+  const handleConfirmMobile = async (user: UserSummary) => {
+    const userId = user.id
+    if (mobileLoading[userId] || user.mobileNumberConfirmed) return
+
+    setMobileLoading((prev) => ({ ...prev, [userId]: true }))
+    setFeedback(null)
+
+    try {
+      await confirmUserMobile(userId)
+      setData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          users: prev.users.map((item) =>
+            item.id === userId ? { ...item, mobileNumberConfirmed: true } : item
+          ),
+        }
+      })
+      setFeedback({ type: 'success', message: 'Móvil confirmado' })
+    } catch (err) {
+      console.error(err)
+      if (isAxiosError(err)) {
+        console.error(err.response?.data)
+      }
+      setFeedback({ type: 'error', message: 'No se pudo confirmar el móvil. Inténtalo de nuevo.' })
+    } finally {
+      setMobileLoading((prev) => {
+        const next = { ...prev }
+        delete next[userId]
+        return next
+      })
+    }
+  }
+
   return (
     <main className="page">
       <header className={styles.header}>
@@ -127,6 +221,17 @@ const UsersListPage = () => {
         <p className={styles.metricValue}>{totalUsers}</p>
         <p className={styles.metricHelper}>Mostrando {users.length} registros en esta vista.</p>
       </section>
+
+      {feedback && (
+        <div
+          className={`alert ${feedback.type === 'success' ? 'alert--success' : 'alert--error'}`.trim()}
+          role="status"
+          aria-live="assertive"
+        >
+          <span aria-hidden>{feedback.type === 'success' ? '✅' : '⚠️'}</span>
+          <span>{feedback.message}</span>
+        </div>
+      )}
 
       <div className={styles.contentStack}>
         {loading && (
@@ -159,7 +264,15 @@ const UsersListPage = () => {
           <EmptyState description="No hay usuarios registrados todavía." />
         )}
 
-        {!loading && !error && users.length > 0 && <UsersTable data={users} />}
+        {!loading && !error && users.length > 0 && (
+          <UsersTable
+            data={users}
+            onConfirmEmail={handleConfirmEmail}
+            onConfirmMobile={handleConfirmMobile}
+            emailLoading={emailLoading}
+            mobileLoading={mobileLoading}
+          />
+        )}
       </div>
 
       {!loading && !error && data ? (

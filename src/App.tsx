@@ -1,12 +1,56 @@
-import { useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { attachTokenInterceptor } from './api/apiClient';
-import AppRouter from './routes/Router';
-import './App.css';
+import { useEffect } from 'react'
+import { NavLink } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
+import { attachTokenInterceptor } from './api/apiClient'
+import AppRouter from './routes/Router'
+import './App.css'
 
 const App = () => {
-  const { getAccessTokenSilently } = useAuth0();
-  useEffect(() => { attachTokenInterceptor(getAccessTokenSilently); }, [getAccessTokenSilently]);
-  return <AppRouter />;
-};
-export default App;
+  const { getAccessTokenSilently, isAuthenticated, user } = useAuth0()
+
+  useEffect(() => {
+    attachTokenInterceptor(getAccessTokenSilently)
+  }, [getAccessTokenSilently])
+
+  const avatarLetter = (user?.name ?? user?.email ?? '?').charAt(0).toUpperCase()
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <NavLink to="/" className="brand">
+          <span className="brand__dot" aria-hidden />
+          <span>UCO Admin</span>
+        </NavLink>
+        <nav className="app-nav">
+          <NavLink to="/" className={({ isActive }) => `app-nav__link${isActive ? ' is-active' : ''}`}>
+            Inicio
+          </NavLink>
+          <NavLink
+            to="/dashboard"
+            className={({ isActive }) => `app-nav__link${isActive ? ' is-active' : ''}`}
+          >
+            Panel
+          </NavLink>
+          <NavLink to="/users" className={({ isActive }) => `app-nav__link${isActive ? ' is-active' : ''}`}>
+            Usuarios
+          </NavLink>
+        </nav>
+        {isAuthenticated ? (
+          <div className="app-user" aria-live="polite">
+            <span className="app-user__avatar" aria-hidden>
+              {avatarLetter}
+            </span>
+            <span className="app-user__name">{user?.name ?? user?.email}</span>
+          </div>
+        ) : (
+          <span className="app-guest">Invitado</span>
+        )}
+      </header>
+      <div className="app-content">
+        <AppRouter />
+      </div>
+    </div>
+  )
+}
+
+export default App

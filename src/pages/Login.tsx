@@ -49,15 +49,27 @@ const Login = () => {
   if (unauthorized) {
     return (
       <main className="page">
-        <h1>Sin permisos</h1>
-        <p>No tienes permisos para acceder al panel de control.</p>
-        <p>
-          Regresa al <Link to="/">inicio</Link> o inicia sesión con una cuenta con privilegios de
-          administrador.
-        </p>
-        <button type="button" className="button" onClick={handleSwitchAccount}>
-          Cambiar de cuenta
-        </button>
+        <section className="card status-card status-card--warning" role="alert">
+          <span className="status-icon" aria-hidden>
+            ⚠️
+          </span>
+          <div>
+            <h1>Sin permisos</h1>
+            <p>No tienes permisos para acceder al panel de control.</p>
+            <p>
+              Regresa al <Link to="/">inicio</Link> o inicia sesión con una cuenta con privilegios de
+              administrador.
+            </p>
+          </div>
+          <div className="card-actions card-actions--start">
+            <button type="button" className="btn btn-primary" onClick={handleSwitchAccount}>
+              Cambiar de cuenta
+            </button>
+            <Link to="/" className="btn btn-outline">
+              Volver al inicio
+            </Link>
+          </div>
+        </section>
       </main>
     )
   }

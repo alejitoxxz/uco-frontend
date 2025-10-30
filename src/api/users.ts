@@ -6,6 +6,8 @@ export interface UserSummary {
   lastName?: string | null
   email: string
   mobileNumber?: string | null
+  emailConfirmed?: boolean | null
+  mobileNumberConfirmed?: boolean | null
 }
 
 export interface UsersPage {
@@ -35,6 +37,14 @@ export async function getUsers(params: { page: number; size: number }): Promise<
   const { page, size } = params
   const { data } = await api.get<UsersPage>(LIST_URL, { params: { page, size } })
   return data
+}
+
+export async function confirmUserEmail(id: string): Promise<void> {
+  await api.post(`${BASE}/users/${id}/confirm-email`)
+}
+
+export async function confirmUserMobile(id: string): Promise<void> {
+  await api.post(`${BASE}/users/${id}/confirm-mobile`)
 }
 
 export const createUser = async (payload: CreateUserRequest) => {

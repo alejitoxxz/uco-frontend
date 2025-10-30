@@ -1,115 +1,174 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import Loading from '../../components/Loading'
-import { getUsers, type PagedUsers } from '../../api/users'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { getUsers, type UsersPage } from '../../api/users'
+import EmptyState from '../../components/ui/EmptyState'
+import ErrorAlert from '../../components/ui/ErrorAlert'
+import LoadingSpinner from '../../components/ui/LoadingSpinner'
+import PageSizeSelect from '../../components/ui/PageSizeSelect'
+import Pagination from '../../components/ui/Pagination'
+import UsersTable from './UsersTable'
+import styles from './UsersListPage.module.css'
 
-export default function UsersListPage() {
-  const [data, setData] = useState<PagedUsers | null>(null)
+const PAGE_SIZES = [10, 20, 30, 50]
+const DEFAULT_PAGE = 0
+const DEFAULT_SIZE = 10
+
+const sanitizePage = (value: string | null) => {
+  if (!value) return DEFAULT_PAGE
+  const parsed = Number.parseInt(value, 10)
+  return Number.isNaN(parsed) || parsed < 0 ? DEFAULT_PAGE : parsed
+}
+
+const sanitizeSize = (value: string | null) => {
+  if (!value) return DEFAULT_SIZE
+  const parsed = Number.parseInt(value, 10)
+  return PAGE_SIZES.includes(parsed) ? parsed : DEFAULT_SIZE
+}
+
+const UsersListPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [data, setData] = useState<UsersPage | null>(null)
   const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshIndex, setRefreshIndex] = useState(0)
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true)
-    setErr(null)
-    try {
-      const res = await getUsers(0, 10)
-      setData(res)
-    } catch (error) {
-      console.error(error)
-      setErr('No se pudo cargar la lista de usuarios. Intenta nuevamente en unos segundos.')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
+  const size = useMemo(() => sanitizeSize(searchParams.get('size')), [searchParams])
 
   useEffect(() => {
-    void fetchUsers()
-  }, [fetchUsers])
+    const next = new URLSearchParams(searchParams)
+    let changed = false
+
+    if (searchParams.get('page') !== String(page)) {
+      next.set('page', String(page))
+      changed = true
+    }
+
+    if (searchParams.get('size') !== String(size)) {
+      next.set('size', String(size))
+      changed = true
+    }
+
+    if (changed) {
+      setSearchParams(next, { replace: true })
+    }
+  }, [page, size, searchParams, setSearchParams])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const response = await getUsers({ page, size })
+        if (!cancelled) {
+          setData(response)
+        }
+      } catch (err) {
+        console.error(err)
+        if (!cancelled) {
+          setError('No se pudo cargar la lista de usuarios. Intenta nuevamente en unos segundos.')
+          setData(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [page, size, refreshIndex])
+
+  const handlePageChange = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('page', String(nextPage))
+    next.set('size', String(size))
+    setSearchParams(next)
+  }
+
+  const handleSizeChange = (nextSize: number) => {
+    const next = new URLSearchParams(searchParams)
+    next.set('page', String(DEFAULT_PAGE))
+    next.set('size', String(nextSize))
+    setSearchParams(next)
+  }
+
+  const handleRetry = () => {
+    setRefreshIndex((value) => value + 1)
+  }
+
+  const totalUsers = data?.totalElements ?? 0
+  const users = data?.users ?? []
 
   return (
     <main className="page">
-      <header className="page-header">
-        <div>
+      <header className={styles.header}>
+        <div className={styles.headerText}>
           <h1>Usuarios</h1>
           <p>Consulta y gestiona los usuarios registrados en la plataforma.</p>
         </div>
-        <div className="page-actions">
-          <Link className="btn btn-accent" to="/users/new">
+        <div className={styles.headerActions}>
+          <PageSizeSelect value={size} onChange={handleSizeChange} />
+          <Link className="btn btn-accent" to="/users/new" aria-label="Registrar nuevo usuario">
             Registrar nuevo usuario
           </Link>
         </div>
       </header>
 
-      {loading && (
-        <section className="card status-card" aria-live="polite">
-          <Loading message="Cargando usuarios..." />
-        </section>
-      )}
+      <section className={`card card--accent ${styles.metricsCard}`} aria-live="polite">
+        <p className={styles.metricLabel}>Usuarios totales</p>
+        <p className={styles.metricValue}>{totalUsers}</p>
+        <p className={styles.metricHelper}>Mostrando {users.length} registros en esta vista.</p>
+      </section>
 
-      {!loading && err && (
-        <section className="card" role="alert">
-          <div className="alert alert--error">
-            <span aria-hidden>⚠️</span>
-            <div>
-              <p style={{ margin: 0 }}>{err}</p>
-              <p style={{ margin: '0.35rem 0 0' }}>Verifica tu conexión o tus permisos e intenta nuevamente.</p>
-            </div>
-          </div>
-          <div className="card-actions card-actions--start">
-            <button type="button" className="btn btn-primary" onClick={() => fetchUsers()}>
-              Reintentar
-            </button>
-            <Link to="/" className="btn btn-outline">
-              Ir al inicio
-            </Link>
-          </div>
-        </section>
-      )}
+      <div className={styles.contentStack}>
+        {loading && (
+          <section className="card" aria-busy="true">
+            <LoadingSpinner label="Cargando usuarios..." />
+          </section>
+        )}
 
-      {!loading && !err && (
-        <>
-          <section className="card card--accent">
-            <p className="metric-title">Usuarios totales</p>
-            <p className="metric-value">{data?.totalElements ?? 0}</p>
-            <p className="form-helper">
-              Mostrando {data?.users?.length ?? 0} registros más recientes en esta vista.
+        {!loading && error && (
+          <ErrorAlert
+            message={error}
+            actions={
+              <>
+                <button type="button" className="btn btn-primary" onClick={handleRetry} aria-label="Reintentar carga">
+                  Reintentar
+                </button>
+                <Link to="/" className="btn btn-outline" aria-label="Ir al inicio">
+                  Ir al inicio
+                </Link>
+              </>
+            }
+          >
+            <p className={styles.metricHelper}>
+              Verifica tu conexión o tus permisos e intenta nuevamente.
             </p>
-          </section>
+          </ErrorAlert>
+        )}
 
-          <section className="card table-card" aria-live="polite">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Correo</th>
-                  <th>ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.users?.length ? (
-                  data.users.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <strong>
-                          {u.firstName} {u.lastName}
-                        </strong>
-                      </td>
-                      <td>{u.email}</td>
-                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.85rem' }}>{u.id}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
-                      No hay usuarios registrados todavía.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </section>
-        </>
-      )}
+        {!loading && !error && users.length === 0 && (
+          <EmptyState description="No hay usuarios registrados todavía." />
+        )}
+
+        {!loading && !error && users.length > 0 && <UsersTable data={users} />}
+      </div>
+
+      {!loading && !error && data ? (
+        <footer className={styles.footer}>
+          <Pagination page={page} size={size} totalElements={data.totalElements} onPageChange={handlePageChange} />
+        </footer>
+      ) : null}
     </main>
   )
 }
+
+export default UsersListPage

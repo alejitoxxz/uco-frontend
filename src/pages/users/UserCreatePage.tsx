@@ -1,8 +1,9 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUser, type CreateUserRequest } from '../../api/users'
 import { getCities, getCountries, getDepartments, type City, type Country, type Department } from '../../api/locations'
+import { getIdTypes, type IdType } from '../../api/idTypes'
 
 export default function UserCreatePage() {
   const [formState, setFormState] = useState<CreateUserRequest>({
@@ -21,6 +22,10 @@ export default function UserCreatePage() {
   const [locationsError, setLocationsError] = useState<string | null>(null)
   const [failedRequest, setFailedRequest] = useState<'countries' | 'departments' | 'cities' | null>(null)
 
+  const [idTypes, setIdTypes] = useState<IdType[]>([])
+  const [loadingIdTypes, setLoadingIdTypes] = useState(false)
+  const [errorIdTypes, setErrorIdTypes] = useState<string | null>(null)
+
   const [countries, setCountries] = useState<Country[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [cities, setCities] = useState<City[]>([])
@@ -36,6 +41,36 @@ export default function UserCreatePage() {
   const [loadingCities, setLoadingCities] = useState(false)
 
   const navigate = useNavigate()
+
+  const loadIdTypes = useCallback(async () => {
+    try {
+      setLoadingIdTypes(true)
+      setErrorIdTypes(null)
+      const list = await getIdTypes()
+      setIdTypes(list)
+      setFormState((state) => {
+        if (!state.idType) {
+          return state
+        }
+        const exists = list.some((item) => item.id === state.idType)
+        if (exists) {
+          return state
+        }
+        return { ...state, idType: '' }
+      })
+    } catch (error) {
+      console.warn('Error loading id types', isAxiosError(error) ? error.response?.data ?? error : error)
+      setIdTypes([])
+      setFormState((state) => ({ ...state, idType: '' }))
+      setErrorIdTypes('No se pudieron cargar los tipos de documento.')
+    } finally {
+      setLoadingIdTypes(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadIdTypes()
+  }, [loadIdTypes])
 
   useEffect(() => {
     let active = true
@@ -227,18 +262,62 @@ export default function UserCreatePage() {
 
       <form className="form" onSubmit={onSubmit} noValidate>
         <div className="form-grid">
-          <label className="form-control" htmlFor="idType">
-            Tipo de identificación*
-            <input
+          <div className="form-control">
+            <label htmlFor="idType">Tipo de identificación*</label>
+            <select
               id="idType"
               name="idType"
-              value={formState.idType}
-              onChange={onFieldChange}
-              placeholder="CC, CE, TI..."
-              autoComplete="off"
+              value={formState.idType ?? ''}
+              onChange={(event) =>
+                setFormState((state) => ({ ...state, idType: event.target.value }))
+              }
+              disabled={loadingIdTypes || !!errorIdTypes || idTypes.length === 0}
+              aria-label="Selecciona el tipo de documento"
+              title="Selecciona el tipo de documento"
               required
-            />
-          </label>
+              className="input select"
+            >
+              <option value="" disabled>
+                {loadingIdTypes ? 'Cargando tipos...' : 'Selecciona un tipo'}
+              </option>
+              {idTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+            {loadingIdTypes ? (
+              <div className="form-helper" role="status" aria-live="polite">
+                <span
+                  className="loader__spinner"
+                  aria-hidden
+                  style={{ width: '24px', height: '24px', borderWidth: '3px' }}
+                />
+                Cargando tipos de documento...
+              </div>
+            ) : null}
+            {errorIdTypes ? (
+              <div className="alert alert--info" role="alert">
+                <span aria-hidden>ℹ️</span>
+                <div>
+                  <p style={{ margin: 0 }}>{errorIdTypes}</p>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    style={{ marginTop: '0.75rem' }}
+                    onClick={() => {
+                      void loadIdTypes()
+                    }}
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {!loadingIdTypes && !errorIdTypes && idTypes.length === 0 ? (
+              <span className="form-helper">No hay tipos de documento disponibles.</span>
+            ) : null}
+          </div>
 
           <label className="form-control" htmlFor="idNumber">
             Número de identificación*

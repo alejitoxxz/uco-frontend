@@ -1,62 +1,18 @@
-import * as React from 'react'
-import { useAuth0 } from '@auth0/auth0-react'
+import type { ReactElement } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
 import Loading from '../components/Loading'
-import { ROLES_CLAIM } from '../auth/roles'
+import { Roles, userHasRole } from '../auth/roles'
 
-interface RoleGuardProps {
-  allowed: string[]
-  children: JSX.Element
+interface GuardProps {
+  children: ReactElement
 }
 
-const RoleGuard = ({ allowed, children }: RoleGuardProps) => {
-  const { isLoading, isAuthenticated, getIdTokenClaims } = useAuth0()
+export const RequireAuth = ({ children }: GuardProps) => {
+  const { isAuthenticated, isLoading } = useAuth0()
   const location = useLocation()
-  const [hasAccess, setHasAccess] = React.useState<boolean | null>(null)
 
-  React.useEffect(() => {
-    let alive = true
-
-    setHasAccess(null)
-
-    ;(async () => {
-      if (isLoading) {
-        return
-      }
-
-      if (!isAuthenticated) {
-        if (alive) {
-          setHasAccess(false)
-        }
-        return
-      }
-
-      try {
-        const claims = await getIdTokenClaims()
-        const claimValue = claims?.[ROLES_CLAIM]
-        const roles = Array.isArray(claimValue)
-          ? claimValue.filter((role): role is string => typeof role === 'string')
-          : typeof claimValue === 'string'
-          ? [claimValue]
-          : []
-
-        if (alive) {
-          setHasAccess(allowed.some((role) => roles.includes(role)))
-        }
-      } catch (error) {
-        console.error('Unable to retrieve ID token claims', error)
-        if (alive) {
-          setHasAccess(false)
-        }
-      }
-    })()
-
-    return () => {
-      alive = false
-    }
-  }, [allowed, getIdTokenClaims, isAuthenticated, isLoading])
-
-  if (isLoading || hasAccess === null) {
+  if (isLoading) {
     return <Loading />
   }
 
@@ -64,11 +20,24 @@ const RoleGuard = ({ allowed, children }: RoleGuardProps) => {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (!hasAccess) {
-    return <Navigate to="/login" state={{ unauthorized: true, from: location }} replace />
+  return children
+}
+
+export const RequireAdmin = ({ children }: GuardProps) => {
+  const { isAuthenticated, isLoading, user } = useAuth0()
+  const location = useLocation()
+
+  if (isLoading) {
+    return <Loading />
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  if (!userHasRole(user, Roles.Admin)) {
+    return <Navigate to="/login" state={{ from: location, unauthorized: true }} replace />
   }
 
   return children
 }
-
-export default RoleGuard

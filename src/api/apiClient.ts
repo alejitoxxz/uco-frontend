@@ -1,52 +1,48 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import type { GetTokenSilentlyOptions } from '@auth0/auth0-react'
 
-type GetAccessToken = (options?: GetTokenSilentlyOptions) => Promise<string>
+type GetAccessToken = (
+  options?: GetTokenSilentlyOptions,
+) => Promise<string | undefined | null>
 
-let client: AxiosInstance | null = null
-let interceptorId: number | null = null
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
 
-const createClient = () =>
-  axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
-  })
+let requestInterceptorId: number | null = null
+let responseInterceptorId: number | null = null
 
-export const getApiClient = () => {
-  if (!client) {
-    client = createClient()
-  }
-
-  return client
-}
-
-const getDefaultTokenOptions = (options?: GetTokenSilentlyOptions): GetTokenSilentlyOptions => {
-  const audience = import.meta.env.VITE_AUTH0_AUDIENCE
-  const scope = import.meta.env.VITE_AUTH0_SCOPE ?? 'openid profile email'
-
-  return {
-    ...options,
-    authorizationParams: {
-      audience,
-      scope,
-      ...options?.authorizationParams,
-    },
-  }
-}
+const getTokenOptions = (
+  options?: GetTokenSilentlyOptions,
+): GetTokenSilentlyOptions => ({
+  ...options,
+  authorizationParams: {
+    audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+    scope: import.meta.env.VITE_AUTH0_SCOPE || 'openid profile email',
+    ...options?.authorizationParams,
+  },
+})
 
 export const attachTokenInterceptor = (
   getAccessTokenSilently: GetAccessToken,
   options?: GetTokenSilentlyOptions,
 ) => {
-  const apiClient = getApiClient()
-
-  if (interceptorId !== null) {
-    apiClient.interceptors.request.eject(interceptorId)
+  if (requestInterceptorId !== null) {
+    api.interceptors.request.eject(requestInterceptorId)
+    requestInterceptorId = null
   }
 
-  interceptorId = apiClient.interceptors.request.use(async (config: AxiosRequestConfig) => {
+  if (responseInterceptorId !== null) {
+    api.interceptors.response.eject(responseInterceptorId)
+    responseInterceptorId = null
+  }
+
+  requestInterceptorId = api.interceptors.request.use(async (config) => {
     try {
-      const tokenOptions = getDefaultTokenOptions(options)
-      const token = await getAccessTokenSilently(tokenOptions)
+      const token = await getAccessTokenSilently(getTokenOptions(options))
       if (token) {
         config.headers = {
           ...config.headers,
@@ -54,11 +50,26 @@ export const attachTokenInterceptor = (
         }
       }
     } catch (error) {
-      console.error('Unable to retrieve access token', error)
+      console.error('No fue posible obtener el token de acceso', error)
     }
 
     return config
   })
+
+  responseInterceptorId = api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      const status = error?.response?.status
+
+      if (status === 401) {
+        window.location.href = '/login'
+      } else if (status === 403) {
+        window.location.href = '/not-authorized'
+      }
+
+      return Promise.reject(error)
+    },
+  )
 }
 
-export default getApiClient()
+export default api

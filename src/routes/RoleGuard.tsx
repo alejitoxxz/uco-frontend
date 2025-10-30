@@ -6,7 +6,7 @@ import { ROLES_CLAIM } from '../auth/roles'
 
 interface RoleGuardProps {
   allowed: string[]
-  children: React.ReactNode
+  children: JSX.Element
 }
 
 const RoleGuard = ({ allowed, children }: RoleGuardProps) => {

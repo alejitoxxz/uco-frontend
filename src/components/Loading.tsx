@@ -3,8 +3,8 @@ interface LoadingProps {
 }
 
 const Loading = ({ message = 'Cargando...' }: LoadingProps) => (
-  <div className="loading">
-    <div className="spinner" aria-hidden />
+  <div className="loader" role="status" aria-live="polite">
+    <div className="loader__spinner" aria-hidden />
     <p>{message}</p>
   </div>
 )

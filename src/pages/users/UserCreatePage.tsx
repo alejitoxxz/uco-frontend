@@ -52,14 +52,21 @@ export default function UserCreatePage() {
         if (!state.idType) {
           return state
         }
-        const exists = list.some((item) => item.id === state.idType)
+        const exists = list.some((item) => {
+          const optionValue = item.code ?? item.id
+          return optionValue ? optionValue === state.idType : false
+        })
         if (exists) {
           return state
         }
         return { ...state, idType: '' }
       })
     } catch (error) {
-      console.warn('Error loading id types', isAxiosError(error) ? error.response?.data ?? error : error)
+      console.warn(
+        'IDTYPES_ERROR',
+        isAxiosError(error) ? error.response?.status : undefined,
+        isAxiosError(error) ? error.config?.url : undefined,
+      )
       setIdTypes([])
       setFormState((state) => ({ ...state, idType: '' }))
       setErrorIdTypes('No se pudieron cargar los tipos de documento.')
@@ -277,12 +284,12 @@ export default function UserCreatePage() {
               required
               className="input select"
             >
-              <option value="" disabled>
+              <option value="">
                 {loadingIdTypes ? 'Cargando tipos...' : 'Selecciona un tipo'}
               </option>
               {idTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
+                <option key={type.id ?? type.code} value={type.code ?? type.id ?? ''}>
+                  {type.name ?? type.description ?? type.code ?? type.id}
                 </option>
               ))}
             </select>

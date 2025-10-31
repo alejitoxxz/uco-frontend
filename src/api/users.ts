@@ -29,9 +29,9 @@ export interface CreateUserRequest {
   mobileNumber: string
 }
 
-const BASE = '/users/uco-challenge/api/v1' // vía gateway
-const LIST_URL = `${BASE}/users` // GET lista
-const CREATE_URL = `${BASE}` // POST crear (sin /users por el controller actual)
+const API_PREFIX = '/uco-challenge/api/v1'
+const LIST_URL = `${API_PREFIX}/users` // GET lista
+const CREATE_URL = `${API_PREFIX}` // POST crear (sin /users por el controller actual)
 
 export async function getUsers(params: { page: number; size: number }): Promise<UsersPage> {
   const { page, size } = params
@@ -40,11 +40,11 @@ export async function getUsers(params: { page: number; size: number }): Promise<
 }
 
 export async function confirmUserEmail(id: string): Promise<void> {
-  await api.post(`${BASE}/users/${id}/confirm-email`)
+  await api.post(`${LIST_URL}/${id}/confirm-email`)
 }
 
 export async function confirmUserMobile(id: string): Promise<void> {
-  await api.post(`${BASE}/users/${id}/confirm-mobile`)
+  await api.post(`${LIST_URL}/${id}/confirm-mobile`)
 }
 
 export const createUser = async (payload: CreateUserRequest) => {

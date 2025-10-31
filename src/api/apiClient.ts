@@ -3,7 +3,10 @@ import type { GetTokenSilentlyOptions } from '@auth0/auth0-react';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE, // http://localhost:8082
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept-Language': 'es',
+  },
 });
 
 let getTokenSilentlyFn: ((opts?: GetTokenSilentlyOptions) => Promise<string>) | null = null;

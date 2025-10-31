@@ -1,13 +1,12 @@
-import axios, { AxiosError } from 'axios';
-import type { GetTokenSilentlyOptions } from '@auth0/auth0-react';
+import axios, { AxiosError } from 'axios'
+import type { GetTokenSilentlyOptions } from '@auth0/auth0-react'
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE, // http://localhost:8082
+export const http = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE,
   headers: {
-    'Content-Type': 'application/json',
     'Accept-Language': 'es',
   },
-});
+})
 
 let getTokenSilentlyFn: ((opts?: GetTokenSilentlyOptions) => Promise<string>) | null = null;
 
@@ -16,7 +15,7 @@ export const attachTokenInterceptor = (
 ) => {
   getTokenSilentlyFn = getTokenSilently;
 
-  api.interceptors.request.use(async (config) => {
+  http.interceptors.request.use(async (config) => {
     if (getTokenSilentlyFn) {
       const token = await getTokenSilentlyFn({
         authorizationParams: {
@@ -29,7 +28,7 @@ export const attachTokenInterceptor = (
     return config;
   });
 
-  api.interceptors.response.use(
+  http.interceptors.response.use(
     (res) => res,
     (err: AxiosError) => {
       const status = err.response?.status;
@@ -38,6 +37,4 @@ export const attachTokenInterceptor = (
       return Promise.reject(err);
     }
   );
-};
-
-export default api;
+}

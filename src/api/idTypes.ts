@@ -1,8 +1,10 @@
 import { http } from './apiClient'
 
 export interface IdType {
-  id: string
-  name: string
+  id?: string
+  code?: string
+  name?: string
+  description?: string
 }
 
 const ID_TYPES_URL = '/api/idtypes'

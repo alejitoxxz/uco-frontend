@@ -1,13 +1,13 @@
-import api from './apiClient'
+import { http } from './apiClient'
 
 export interface IdType {
   id: string
   name: string
 }
 
-const ID_TYPES_URL = '/uco-challenge/api/v1/id-types'
+const ID_TYPES_URL = '/api/idtypes'
 
 export async function getIdTypes(): Promise<IdType[]> {
-  const { data } = await api.get<IdType[]>(ID_TYPES_URL)
+  const { data } = await http.get<IdType[]>(ID_TYPES_URL)
   return data
 }

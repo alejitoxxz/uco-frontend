@@ -1,4 +1,4 @@
-import api from './apiClient'
+import { http } from './apiClient'
 
 export interface UserSummary {
   id: string
@@ -29,25 +29,24 @@ export interface CreateUserRequest {
   mobileNumber: string
 }
 
-const API_PREFIX = '/uco-challenge/api/v1'
-const LIST_URL = `${API_PREFIX}/users` // GET lista
-const CREATE_URL = `${API_PREFIX}` // POST crear (sin /users por el controller actual)
+const USERS_BASE = '/api/users'
+const CREATE_URL = '/api/users/register'
 
 export async function getUsers(params: { page: number; size: number }): Promise<UsersPage> {
   const { page, size } = params
-  const { data } = await api.get<UsersPage>(LIST_URL, { params: { page, size } })
+  const { data } = await http.get<UsersPage>(USERS_BASE, { params: { page, size } })
   return data
 }
 
 export async function confirmUserEmail(id: string): Promise<void> {
-  await api.post(`${LIST_URL}/${id}/confirm-email`)
+  await http.post(`${USERS_BASE}/${id}/confirm-email`)
 }
 
 export async function confirmUserMobile(id: string): Promise<void> {
-  await api.post(`${LIST_URL}/${id}/confirm-mobile`)
+  await http.post(`${USERS_BASE}/${id}/confirm-mobile`)
 }
 
 export const createUser = async (payload: CreateUserRequest) => {
-  const { data } = await api.post(CREATE_URL, payload)
+  const { data } = await http.post(CREATE_URL, payload)
   return data
 }

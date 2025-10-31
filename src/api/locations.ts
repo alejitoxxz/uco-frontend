@@ -15,7 +15,7 @@ export interface City {
   name: string
 }
 
-const BASE = '/users/uco-challenge/api/v1/locations'
+const BASE = '/uco-challenge/api/v1/locations'
 
 export async function getCountries(): Promise<Country[]> {
   const { data } = await api.get<Country[]>(`${BASE}/countries`)

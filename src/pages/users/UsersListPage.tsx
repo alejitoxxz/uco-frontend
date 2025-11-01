@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { getUsers } from '../../api/users'
 import { confirmUserEmail, confirmUserMobile } from '../../api/userConfirmations'
@@ -53,6 +53,7 @@ const UsersListPage = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [emailLoading, setEmailLoading] = useState<Record<string, boolean>>({})
   const [mobileLoading, setMobileLoading] = useState<Record<string, boolean>>({})
+  const location = useLocation()
 
   const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
   const size = useMemo(() => sanitizeSize(searchParams.get('size')), [searchParams])
@@ -132,6 +133,13 @@ const UsersListPage = () => {
 
   const totalUsers = data?.totalElements ?? 0
   const users = data?.users ?? []
+
+  const refreshSignal = (location.state as { refresh?: number } | null)?.refresh
+
+  useEffect(() => {
+    if (!refreshSignal) return
+    setRefreshIndex((value) => value + 1)
+  }, [refreshSignal])
 
   useEffect(() => {
     if (!feedback) return

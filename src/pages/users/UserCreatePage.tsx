@@ -356,8 +356,7 @@ export default function UserCreatePage() {
       navigate('/users', { replace: true })
     } catch (err: any) {
       const body = err?.response?.data as BackendErrorResponse | undefined
-      const msg =
-        body?.message || body?.error || (body ? JSON.stringify(body) : undefined) || 'Solicitud inválida'
+      const msg = err?.userMessage || 'Ocurrió un error. Intenta nuevamente.'
       console.error('Backend error:', err?.response?.status, body)
 
       if (body) {

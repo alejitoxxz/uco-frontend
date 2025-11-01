@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { parseApiError } from '../utils/parseApiError'
 
 function trimTrailingSlash(url: string) {
   return url.endsWith('/') ? url.slice(0, -1) : url
@@ -10,3 +11,11 @@ export const api = axios.create({
   baseURL: trimTrailingSlash(BASE),
   headers: { 'Content-Type': 'application/json' },
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    ;(error as any).__niceMessage = parseApiError(error)
+    return Promise.reject(error)
+  }
+)

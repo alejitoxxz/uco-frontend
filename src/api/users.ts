@@ -1,4 +1,4 @@
-import { http } from './apiClient'
+import { api } from './client'
 
 export interface UserSummary {
   id: string
@@ -29,24 +29,22 @@ export interface CreateUserRequest {
   mobileNumber: string
 }
 
-const USERS_BASE = '/api/users'
-const CREATE_URL = '/api/users/register'
+const USERS_BASE = '/users'
 
-export async function getUsers(params: { page: number; size: number }): Promise<UsersPage> {
-  const { page, size } = params
-  const { data } = await http.get<UsersPage>(USERS_BASE, { params: { page, size } })
+export async function getUsers(page = 0, size = 10): Promise<UsersPage> {
+  const { data } = await api.get<UsersPage>(USERS_BASE, { params: { page, size } })
   return data
 }
 
 export async function confirmUserEmail(id: string): Promise<void> {
-  await http.post(`${USERS_BASE}/${id}/confirm-email`)
+  await api.post(`${USERS_BASE}/${id}/confirm-email`)
 }
 
 export async function confirmUserMobile(id: string): Promise<void> {
-  await http.post(`${USERS_BASE}/${id}/confirm-mobile`)
+  await api.post(`${USERS_BASE}/${id}/confirm-mobile`)
 }
 
 export const createUser = async (payload: CreateUserRequest) => {
-  const { data } = await http.post(CREATE_URL, payload)
+  const { data } = await api.post(USERS_BASE, payload)
   return data
 }

@@ -1,4 +1,4 @@
-import { http } from './apiClient'
+import { api } from './client'
 
 export interface IdType {
   id?: string
@@ -7,9 +7,9 @@ export interface IdType {
   description?: string
 }
 
-const ID_TYPES_URL = '/api/idtypes'
+const ID_TYPES_URL = '/idtypes'
 
 export async function getIdTypes(): Promise<IdType[]> {
-  const { data } = await http.get<IdType[]>(ID_TYPES_URL)
+  const { data } = await api.get<IdType[]>(ID_TYPES_URL)
   return data
 }

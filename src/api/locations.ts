@@ -1,4 +1,4 @@
-import { http } from './apiClient'
+import { api } from './client'
 
 export interface Country {
   id: string
@@ -15,19 +15,19 @@ export interface City {
   name: string
 }
 
-const BASE = '/api/locations'
+const BASE = '/locations'
 
 export async function getCountries(): Promise<Country[]> {
-  const { data } = await http.get<Country[]>(`${BASE}/countries`)
+  const { data } = await api.get<Country[]>(`${BASE}/countries`)
   return data
 }
 
 export async function getDepartments(countryId: string): Promise<Department[]> {
-  const { data } = await http.get<Department[]>(`${BASE}/countries/${countryId}/departments`)
+  const { data } = await api.get<Department[]>(`${BASE}/countries/${countryId}/departments`)
   return data
 }
 
 export async function getCities(departmentId: string): Promise<City[]> {
-  const { data } = await http.get<City[]>(`${BASE}/departments/${departmentId}/cities`)
+  const { data } = await api.get<City[]>(`${BASE}/departments/${departmentId}/cities`)
   return data
 }

@@ -6,6 +6,6 @@ export async function getUsers(page = 0, size = 10) {
 }
 
 export async function createUser(payload: any) {
-  const { data } = await api.post('/users', payload)
+  const { data } = await api.post('/', payload)
   return data
 }

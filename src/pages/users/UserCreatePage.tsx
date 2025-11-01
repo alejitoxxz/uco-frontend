@@ -99,22 +99,14 @@ export default function UserCreatePage() {
     setLocationsError(null)
     setFailedRequest(null)
 
-    let resolvedIdTypes: IdType[] = []
-    let resolvedCountries: Country[] = []
-
     ;(async () => {
       try {
         const [fetchedIdTypes, fetchedCountries] = await Promise.all([
-          getIdTypes().then((items) => {
-            resolvedIdTypes = items
-            return items
-          }),
-          getCountries().then((items) => {
-            resolvedCountries = items
-            return items
-          }),
+          getIdTypes(),
+          getCountries(),
         ])
         if (!active) return
+
         setIdTypes(fetchedIdTypes)
         setCountries(fetchedCountries)
         setFormState((state) => {
@@ -128,38 +120,18 @@ export default function UserCreatePage() {
           return exists ? state : { ...state, idType: '' }
         })
       } catch (error) {
-        console.warn(
-          'CATALOGS_ERROR',
-          isAxiosError(error) ? error.response?.status : undefined,
-          isAxiosError(error) ? error.config?.url : undefined,
-        )
+        console.error(error)
+        if (isAxiosError(error)) {
+          console.error(error.response?.data)
+        }
         if (!active) return
 
-        if (resolvedIdTypes.length > 0) {
-          setIdTypes(resolvedIdTypes)
-          setFormState((state) => {
-            if (!state.idType) {
-              return state
-            }
-            const exists = resolvedIdTypes.some((item) => {
-              const optionValue = item.code ?? item.id
-              return optionValue ? optionValue === state.idType : false
-            })
-            return exists ? state : { ...state, idType: '' }
-          })
-        } else {
-          setIdTypes([])
-          setFormState((state) => ({ ...state, idType: '' }))
-          setErrorIdTypes('No se pudieron cargar los tipos de documento.')
-        }
-
-        if (resolvedCountries.length > 0) {
-          setCountries(resolvedCountries)
-        } else {
-          setCountries([])
-          setLocationsError('No se pudieron cargar los países. Inténtalo de nuevo.')
-          setFailedRequest('countries')
-        }
+        setIdTypes([])
+        setCountries([])
+        setFormState((state) => ({ ...state, idType: '' }))
+        setErrorIdTypes('No se pudieron cargar los tipos de documento.')
+        setLocationsError('No se pudieron cargar los países. Inténtalo de nuevo.')
+        setFailedRequest('countries')
       } finally {
         if (!active) return
         setLoadingIdTypes(false)

@@ -73,7 +73,7 @@ const UsersListPage = () => {
       setFeedback(null)
 
       try {
-        const response = await getUsers({ page, size })
+        const response = await getUsers(page, size)
         if (!cancelled) {
           setData(response)
         }

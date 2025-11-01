@@ -327,54 +327,74 @@ export default function UserCreatePage() {
       return
     }
 
+    const selectedIdTypeOption = idTypes.find((item) => {
+      const optionValue = item.code ?? item.id ?? ''
+      return optionValue ? optionValue === formData.idType : false
+    })
+
+    const registerPayload = {
+      documentTypeId: selectedIdTypeOption?.id ?? formData.idType,
+      documentTypeName:
+        selectedIdTypeOption?.name ?? selectedIdTypeOption?.description ?? undefined,
+      documentNumber: formData.idNumber,
+      firstName: formData.firstName,
+      middleName: formData.secondName || undefined,
+      lastName: formData.firstSurname,
+      secondLastName: formData.secondSurname || undefined,
+      email: formData.email || undefined,
+      mobile: formData.mobileNumber || undefined,
+      countryId: trimmedCountry,
+      departmentId: trimmedDepartment,
+      cityId: formData.homeCity,
+    }
+
     setSaving(true)
     try {
-      await createUser(formData)
+      const result = await createUser(registerPayload)
+      console.debug('Usuario creado con éxito', result)
+      // TODO: notificar éxito
       navigate('/users', { replace: true })
-    } catch (error) {
-      console.error(error)
-      if (isAxiosError(error)) {
-        const status = error.response?.status
-        const body = error.response?.data as BackendErrorResponse | undefined
-        console.error('Backend error:', status, body)
-        const backendMsg = body?.message ?? 'Ocurrió un error inesperado'
-        if (body) {
-          const backendFieldErrors: Partial<Record<FormErrorKey, string>> = {}
-          if (Array.isArray(body.details)) {
-            body.details.forEach((detail) => {
-              const field = detail.field
-              if (!field) return
-              if (field === 'email' && detail.code === 'duplicate') {
-                backendFieldErrors.email = EMAIL_DUPLICATE_MESSAGE
-                return
-              }
-              if (isFormErrorKey(field)) {
-                backendFieldErrors[field] = detail.message ?? REVIEW_FIELDS_MESSAGE
-                return
-              }
-              if (field in formData) {
-                backendFieldErrors[field as FormErrorKey] = detail.message ?? REVIEW_FIELDS_MESSAGE
-              }
-            })
-          }
+    } catch (err: any) {
+      const body = err?.response?.data as BackendErrorResponse | undefined
+      const msg =
+        body?.message || body?.error || (body ? JSON.stringify(body) : undefined) || 'Solicitud inválida'
+      console.error('Backend error:', err?.response?.status, body)
 
-          if (body.code === 'UNEXPECTED_ERROR') {
-            window.setTimeout(() => {
-              window.alert('Ocurrió un error inesperado')
-            }, 0)
-          }
+      if (body) {
+        const backendFieldErrors: Partial<Record<FormErrorKey, string>> = {}
+        if (Array.isArray(body.details)) {
+          body.details.forEach((detail) => {
+            const field = detail.field
+            if (!field) return
+            if (field === 'email' && detail.code === 'duplicate') {
+              backendFieldErrors.email = EMAIL_DUPLICATE_MESSAGE
+              return
+            }
+            if (isFormErrorKey(field)) {
+              backendFieldErrors[field] = detail.message ?? REVIEW_FIELDS_MESSAGE
+              return
+            }
+            if (field in formData) {
+              backendFieldErrors[field as FormErrorKey] =
+                detail.message ?? REVIEW_FIELDS_MESSAGE
+            }
+          })
+        }
 
-          if (Object.keys(backendFieldErrors).length > 0) {
-            setFieldErrors(backendFieldErrors)
-            setErr(REVIEW_FIELDS_MESSAGE)
-          } else {
-            setErr(backendMsg)
-          }
+        if (body.code === 'UNEXPECTED_ERROR') {
+          window.setTimeout(() => {
+            window.alert('Ocurrió un error inesperado')
+          }, 0)
+        }
+
+        if (Object.keys(backendFieldErrors).length > 0) {
+          setFieldErrors(backendFieldErrors)
+          setErr(REVIEW_FIELDS_MESSAGE)
         } else {
-          setErr(backendMsg)
+          setErr(msg)
         }
       } else {
-        setErr('No se pudo crear el usuario. Revisa los permisos y la información ingresada.')
+        setErr(msg)
       }
     } finally {
       setSaving(false)

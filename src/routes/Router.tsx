@@ -5,6 +5,7 @@ import NotAuthorized from '../pages/NotAuthorized';
 import Dashboard from '../pages/Dashboard';
 import UsersListPage from '../pages/users/UsersListPage';
 import UserCreatePage from '../pages/users/UserCreatePage';
+import VerifyContactPage from '../pages/VerifyContactPage';
 import { RequireAuth, RequireAdmin } from './RoleGuard';
 
 export default function AppRouter() {
@@ -14,6 +15,7 @@ export default function AppRouter() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/not-authorized" element={<NotAuthorized />} />
+      <Route path="/verify" element={<VerifyContactPage />} />
 
       {/* Protegidas: primero auth, luego admin */}
       <Route element={<RequireAuth />}>

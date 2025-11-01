@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { getUsers } from '../../api/users'
-import { confirmUserEmail, confirmUserMobile } from '../../api/userConfirmations'
 import EmptyState from '../../components/ui/EmptyState'
 import ErrorAlert from '../../components/ui/ErrorAlert'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
 import PageSizeSelect from '../../components/ui/PageSizeSelect'
 import Pagination from '../../components/ui/Pagination'
+import VerificationModal from '../../components/VerificationModal'
 import UsersTable from './UsersTable'
 import styles from './UsersListPage.module.css'
 
@@ -51,8 +51,11 @@ const UsersListPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [refreshIndex, setRefreshIndex] = useState(0)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [emailLoading, setEmailLoading] = useState<Record<string, boolean>>({})
-  const [mobileLoading, setMobileLoading] = useState<Record<string, boolean>>({})
+  const [verificationContext, setVerificationContext] = useState<{
+    userId: string
+    contact: string
+    type: 'email' | 'mobile'
+  } | null>(null)
   const location = useLocation()
 
   const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
@@ -153,72 +156,43 @@ const UsersListPage = () => {
     }
   }, [feedback])
 
-  const handleConfirmEmail = async (user: UserSummary) => {
-    const userId = user.id
-    if (emailLoading[userId] || user.emailConfirmed) return
+  const openVerificationModal = (user: UserSummary, type: 'email' | 'mobile') => {
+    const contactValue =
+      type === 'email' ? user.email.trim() : (user.mobileNumber?.toString().trim() ?? '')
 
-    setEmailLoading((prev) => ({ ...prev, [userId]: true }))
-    setFeedback(null)
-
-    try {
-      await confirmUserEmail(userId)
-      setData((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          users: prev.users.map((item) =>
-            item.id === userId ? { ...item, emailConfirmed: true } : item
-          ),
-        }
-      })
-      setFeedback({ type: 'success', message: 'Correo confirmado' })
-    } catch (err) {
-      console.error(err)
-      if (isAxiosError(err)) {
-        console.error(err.response?.data)
-      }
-      setFeedback({ type: 'error', message: 'No se pudo confirmar el correo. Inténtalo de nuevo.' })
-    } finally {
-      setEmailLoading((prev) => {
-        const next = { ...prev }
-        delete next[userId]
-        return next
-      })
+    if (!contactValue) {
+      setFeedback({ type: 'error', message: 'El contacto seleccionado no está disponible.' })
+      return
     }
+
+    setFeedback(null)
+    setVerificationContext({ userId: user.id, contact: contactValue, type })
   }
 
-  const handleConfirmMobile = async (user: UserSummary) => {
-    const userId = user.id
-    if (mobileLoading[userId] || user.mobileNumberConfirmed) return
+  const handleVerificationSuccess = () => {
+    if (!verificationContext) return
 
-    setMobileLoading((prev) => ({ ...prev, [userId]: true }))
-    setFeedback(null)
+    const { userId, type } = verificationContext
 
-    try {
-      await confirmUserMobile(userId)
-      setData((prev) => {
-        if (!prev) return prev
-        return {
-          ...prev,
-          users: prev.users.map((item) =>
-            item.id === userId ? { ...item, mobileNumberConfirmed: true } : item
-          ),
-        }
-      })
-      setFeedback({ type: 'success', message: 'Móvil confirmado' })
-    } catch (err) {
-      console.error(err)
-      if (isAxiosError(err)) {
-        console.error(err.response?.data)
+    setData((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        users: prev.users.map((item) => {
+          if (item.id !== userId) return item
+          if (type === 'email') {
+            return { ...item, emailConfirmed: true }
+          }
+          return { ...item, mobileNumberConfirmed: true }
+        }),
       }
-      setFeedback({ type: 'error', message: 'No se pudo confirmar el móvil. Inténtalo de nuevo.' })
-    } finally {
-      setMobileLoading((prev) => {
-        const next = { ...prev }
-        delete next[userId]
-        return next
-      })
-    }
+    })
+
+    setFeedback({ type: 'success', message: 'Contacto verificado correctamente.' })
+  }
+
+  const handleCloseModal = () => {
+    setVerificationContext(null)
   }
 
   return (
@@ -287,10 +261,8 @@ const UsersListPage = () => {
         {!loading && !error && users.length > 0 && (
           <UsersTable
             data={users}
-            onConfirmEmail={handleConfirmEmail}
-            onConfirmMobile={handleConfirmMobile}
-            emailLoading={emailLoading}
-            mobileLoading={mobileLoading}
+            onConfirmEmail={(user) => openVerificationModal(user, 'email')}
+            onConfirmMobile={(user) => openVerificationModal(user, 'mobile')}
           />
         )}
       </div>
@@ -300,6 +272,13 @@ const UsersListPage = () => {
           <Pagination page={page} size={size} totalElements={data.totalElements} onPageChange={handlePageChange} />
         </footer>
       ) : null}
+
+      <VerificationModal
+        show={Boolean(verificationContext)}
+        contact={verificationContext?.contact ?? ''}
+        onClose={handleCloseModal}
+        onVerified={handleVerificationSuccess}
+      />
     </main>
   )
 }

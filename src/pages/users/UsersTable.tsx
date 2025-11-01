@@ -5,11 +5,9 @@ interface UsersTableProps {
   data: UserSummary[]
   onConfirmEmail: (user: UserSummary) => void
   onConfirmMobile: (user: UserSummary) => void
-  emailLoading: Record<string, boolean>
-  mobileLoading: Record<string, boolean>
 }
 
-const UsersTable = ({ data, onConfirmEmail, onConfirmMobile, emailLoading, mobileLoading }: UsersTableProps) => {
+const UsersTable = ({ data, onConfirmEmail, onConfirmMobile }: UsersTableProps) => {
   return (
     <section className={styles.tableCard} aria-live="polite">
       <div className={styles.tableWrapper}>
@@ -32,8 +30,8 @@ const UsersTable = ({ data, onConfirmEmail, onConfirmMobile, emailLoading, mobil
               const formattedMobile = mobileNumber ? mobileNumber : '—'
               const emailConfirmed = Boolean(user.emailConfirmed)
               const mobileConfirmed = Boolean(user.mobileNumberConfirmed)
-              const emailButtonLoading = Boolean(emailLoading[user.id])
-              const mobileButtonLoading = Boolean(mobileLoading[user.id])
+              const canConfirmEmail = !emailConfirmed
+              const canConfirmMobile = Boolean(mobileNumber) && !mobileConfirmed
 
               return (
                 <tr key={user.id}>
@@ -69,21 +67,27 @@ const UsersTable = ({ data, onConfirmEmail, onConfirmMobile, emailLoading, mobil
                         type="button"
                         className="btn btn-primary"
                         onClick={() => onConfirmEmail(user)}
-                        disabled={emailConfirmed || emailButtonLoading}
+                        disabled={!canConfirmEmail}
                         aria-label={`Confirmar correo de ${displayName}`}
                         title={emailConfirmed ? 'Correo ya confirmado' : 'Confirmar correo'}
                       >
-                        {emailButtonLoading ? 'Confirmando…' : 'Confirmar correo'}
+                        Confirmar correo
                       </button>
                       <button
                         type="button"
                         className="btn btn-outline"
                         onClick={() => onConfirmMobile(user)}
-                        disabled={mobileConfirmed || mobileButtonLoading}
+                        disabled={!canConfirmMobile}
                         aria-label={`Confirmar móvil de ${displayName}`}
-                        title={mobileConfirmed ? 'Móvil ya confirmado' : 'Confirmar móvil'}
+                        title={
+                          mobileConfirmed
+                            ? 'Móvil ya confirmado'
+                            : mobileNumber
+                              ? 'Confirmar móvil'
+                              : 'Número de móvil no disponible'
+                        }
                       >
-                        {mobileButtonLoading ? 'Confirmando…' : 'Confirmar móvil'}
+                        Confirmar móvil
                       </button>
                     </div>
                   </td>

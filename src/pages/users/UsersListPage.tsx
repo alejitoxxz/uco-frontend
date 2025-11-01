@@ -1,13 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
-import {
-  confirmUserEmail,
-  confirmUserMobile,
-  getUsers,
-  type UserSummary,
-  type UsersPage,
-} from '../../api/users'
+import { getUsers } from '../../api/users'
+import { confirmUserEmail, confirmUserMobile } from '../../api/userConfirmations'
 import EmptyState from '../../components/ui/EmptyState'
 import ErrorAlert from '../../components/ui/ErrorAlert'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -15,6 +10,23 @@ import PageSizeSelect from '../../components/ui/PageSizeSelect'
 import Pagination from '../../components/ui/Pagination'
 import UsersTable from './UsersTable'
 import styles from './UsersListPage.module.css'
+
+interface UserSummary {
+  id: string
+  firstName: string
+  lastName?: string | null
+  email: string
+  mobileNumber?: string | null
+  emailConfirmed?: boolean | null
+  mobileNumberConfirmed?: boolean | null
+}
+
+interface UsersPage {
+  users: UserSummary[]
+  page: number
+  size: number
+  totalElements: number
+}
 
 const PAGE_SIZES = [10, 20, 30, 50]
 const DEFAULT_PAGE = 0
@@ -73,7 +85,7 @@ const UsersListPage = () => {
       setFeedback(null)
 
       try {
-        const response = await getUsers(page, size)
+        const response = (await getUsers(page, size)) as UsersPage
         if (!cancelled) {
           setData(response)
         }

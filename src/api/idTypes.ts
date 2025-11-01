@@ -7,7 +7,7 @@ export interface IdType {
   description?: string
 }
 
-const ID_TYPES_URL = '/idtypes'
+const ID_TYPES_URL = '/id-types'
 
 export async function getIdTypes(): Promise<IdType[]> {
   const { data } = await api.get<IdType[]>(ID_TYPES_URL)

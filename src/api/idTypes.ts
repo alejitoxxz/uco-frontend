@@ -7,9 +7,17 @@ export interface IdType {
   description?: string
 }
 
-const ID_TYPES_URL = '/id-types'
-
 export async function getIdTypes(): Promise<IdType[]> {
-  const { data } = await api.get<IdType[]>(ID_TYPES_URL)
-  return data
+  try {
+    const { data } = await api.get<IdType[]>('/idtypes')
+    return data
+  } catch (err: any) {
+    console.error(
+      'CATALOGS_ERROR',
+      err?.config?.url,
+      err?.response?.status,
+      err?.response?.data
+    )
+    throw err
+  }
 }

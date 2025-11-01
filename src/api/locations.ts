@@ -16,16 +16,16 @@ export interface City {
 }
 
 export async function getCountries(): Promise<Country[]> {
-  const { data } = await api.get<Country[]>('/catalogs/countries')
+  const { data } = await api.get<Country[]>('/countries')
   return data
 }
 
 export async function getDepartments(countryId: string): Promise<Department[]> {
-  const { data } = await api.get<Department[]>('/catalogs/departments', { params: { countryId } })
+  const { data } = await api.get<Department[]>('/departments', { params: { countryId } })
   return data
 }
 
 export async function getCities(departmentId: string): Promise<City[]> {
-  const { data } = await api.get<City[]>('/catalogs/cities', { params: { departmentId } })
+  const { data } = await api.get<City[]>('/cities', { params: { departmentId } })
   return data
 }

@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
+import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUser } from '../../api/users'
@@ -91,66 +91,82 @@ export default function UserCreatePage() {
 
   const navigate = useNavigate()
 
-  const loadIdTypes = useCallback(async () => {
-    try {
-      setLoadingIdTypes(true)
-      setErrorIdTypes(null)
-      const list = await getIdTypes()
-      setIdTypes(list)
-      setFormState((state) => {
-        if (!state.idType) {
-          return state
-        }
-        const exists = list.some((item) => {
-          const optionValue = item.code ?? item.id
-          return optionValue ? optionValue === state.idType : false
-        })
-        if (exists) {
-          return state
-        }
-        return { ...state, idType: '' }
-      })
-    } catch (error) {
-      console.warn(
-        'IDTYPES_ERROR',
-        isAxiosError(error) ? error.response?.status : undefined,
-        isAxiosError(error) ? error.config?.url : undefined,
-      )
-      setIdTypes([])
-      setFormState((state) => ({ ...state, idType: '' }))
-      setErrorIdTypes('No se pudieron cargar los tipos de documento.')
-    } finally {
-      setLoadingIdTypes(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadIdTypes()
-  }, [loadIdTypes])
-
   useEffect(() => {
     let active = true
+    setLoadingIdTypes(true)
     setLoadingCountries(true)
+    setErrorIdTypes(null)
     setLocationsError(null)
     setFailedRequest(null)
+
+    let resolvedIdTypes: IdType[] = []
+    let resolvedCountries: Country[] = []
+
     ;(async () => {
       try {
-        const res = await getCountries()
+        const [fetchedIdTypes, fetchedCountries] = await Promise.all([
+          getIdTypes().then((items) => {
+            resolvedIdTypes = items
+            return items
+          }),
+          getCountries().then((items) => {
+            resolvedCountries = items
+            return items
+          }),
+        ])
         if (!active) return
-        setCountries(res)
+        setIdTypes(fetchedIdTypes)
+        setCountries(fetchedCountries)
+        setFormState((state) => {
+          if (!state.idType) {
+            return state
+          }
+          const exists = fetchedIdTypes.some((item) => {
+            const optionValue = item.code ?? item.id
+            return optionValue ? optionValue === state.idType : false
+          })
+          return exists ? state : { ...state, idType: '' }
+        })
       } catch (error) {
-        console.error(error)
-        if (isAxiosError(error)) {
-          console.error(error.response?.data)
-        }
+        console.warn(
+          'CATALOGS_ERROR',
+          isAxiosError(error) ? error.response?.status : undefined,
+          isAxiosError(error) ? error.config?.url : undefined,
+        )
         if (!active) return
-        setLocationsError('No se pudieron cargar los países. Inténtalo de nuevo.')
-        setFailedRequest('countries')
+
+        if (resolvedIdTypes.length > 0) {
+          setIdTypes(resolvedIdTypes)
+          setFormState((state) => {
+            if (!state.idType) {
+              return state
+            }
+            const exists = resolvedIdTypes.some((item) => {
+              const optionValue = item.code ?? item.id
+              return optionValue ? optionValue === state.idType : false
+            })
+            return exists ? state : { ...state, idType: '' }
+          })
+        } else {
+          setIdTypes([])
+          setFormState((state) => ({ ...state, idType: '' }))
+          setErrorIdTypes('No se pudieron cargar los tipos de documento.')
+        }
+
+        if (resolvedCountries.length > 0) {
+          setCountries(resolvedCountries)
+        } else {
+          setCountries([])
+          setLocationsError('No se pudieron cargar los países. Inténtalo de nuevo.')
+          setFailedRequest('countries')
+        }
       } finally {
         if (!active) return
+        setLoadingIdTypes(false)
         setLoadingCountries(false)
       }
     })()
+
     return () => {
       active = false
     }

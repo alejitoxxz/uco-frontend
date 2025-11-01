@@ -287,7 +287,7 @@ export default function UserCreatePage() {
     setErr(null)
     setFieldErrors({})
 
-    const sanitized: CreateUserRequest = {
+    const formData: CreateUserRequest = {
       idType: formState.idType.trim(),
       idNumber: formState.idNumber.trim(),
       firstName: formState.firstName.trim(),
@@ -301,25 +301,25 @@ export default function UserCreatePage() {
     const trimmedCountry = selectedCountry.trim()
     const trimmedDepartment = selectedDepartment.trim()
 
-    setFormState(sanitized)
+    setFormState(formData)
     setSelectedCountry(trimmedCountry)
     setSelectedDepartment(trimmedDepartment)
 
     const nextErrors: Partial<Record<FormErrorKey, string>> = {}
 
-    if (!sanitized.idType) nextErrors.idType = REQUIRED_MESSAGE
-    if (!sanitized.idNumber) nextErrors.idNumber = REQUIRED_MESSAGE
-    if (!sanitized.firstName) nextErrors.firstName = REQUIRED_MESSAGE
-    if (!sanitized.firstSurname) nextErrors.firstSurname = REQUIRED_MESSAGE
+    if (!formData.idType) nextErrors.idType = REQUIRED_MESSAGE
+    if (!formData.idNumber) nextErrors.idNumber = REQUIRED_MESSAGE
+    if (!formData.firstName) nextErrors.firstName = REQUIRED_MESSAGE
+    if (!formData.firstSurname) nextErrors.firstSurname = REQUIRED_MESSAGE
     if (!trimmedCountry) nextErrors.country = REQUIRED_MESSAGE
     if (!trimmedDepartment) nextErrors.department = REQUIRED_MESSAGE
-    if (!sanitized.homeCity) nextErrors.homeCity = REQUIRED_MESSAGE
-    if (!sanitized.email) {
+    if (!formData.homeCity) nextErrors.homeCity = REQUIRED_MESSAGE
+    if (!formData.email) {
       nextErrors.email = REQUIRED_MESSAGE
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitized.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       nextErrors.email = EMAIL_INVALID_MESSAGE
     }
-    if (!sanitized.mobileNumber) nextErrors.mobileNumber = REQUIRED_MESSAGE
+    if (!formData.mobileNumber) nextErrors.mobileNumber = REQUIRED_MESSAGE
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
@@ -329,17 +329,19 @@ export default function UserCreatePage() {
 
     setSaving(true)
     try {
-      await createUser(sanitized)
+      await createUser(formData)
       navigate('/users', { replace: true })
     } catch (error) {
       console.error(error)
       if (isAxiosError(error)) {
-        console.error(error.response?.data)
-        const backendError = error.response?.data as BackendErrorResponse | undefined
-        if (backendError) {
+        const status = error.response?.status
+        const body = error.response?.data as BackendErrorResponse | undefined
+        console.error('Backend error:', status, body)
+        const backendMsg = body?.message ?? 'Ocurrió un error inesperado'
+        if (body) {
           const backendFieldErrors: Partial<Record<FormErrorKey, string>> = {}
-          if (Array.isArray(backendError.details)) {
-            backendError.details.forEach((detail) => {
+          if (Array.isArray(body.details)) {
+            body.details.forEach((detail) => {
               const field = detail.field
               if (!field) return
               if (field === 'email' && detail.code === 'duplicate') {
@@ -350,13 +352,13 @@ export default function UserCreatePage() {
                 backendFieldErrors[field] = detail.message ?? REVIEW_FIELDS_MESSAGE
                 return
               }
-              if (field in sanitized) {
+              if (field in formData) {
                 backendFieldErrors[field as FormErrorKey] = detail.message ?? REVIEW_FIELDS_MESSAGE
               }
             })
           }
 
-          if (backendError.code === 'UNEXPECTED_ERROR') {
+          if (body.code === 'UNEXPECTED_ERROR') {
             window.setTimeout(() => {
               window.alert('Ocurrió un error inesperado')
             }, 0)
@@ -365,13 +367,11 @@ export default function UserCreatePage() {
           if (Object.keys(backendFieldErrors).length > 0) {
             setFieldErrors(backendFieldErrors)
             setErr(REVIEW_FIELDS_MESSAGE)
-          } else if (backendError.message) {
-            setErr(backendError.message)
           } else {
-            setErr('No se pudo crear el usuario. Revisa los permisos y la información ingresada.')
+            setErr(backendMsg)
           }
         } else {
-          setErr('No se pudo crear el usuario. Revisa los permisos y la información ingresada.')
+          setErr(backendMsg)
         }
       } else {
         setErr('No se pudo crear el usuario. Revisa los permisos y la información ingresada.')

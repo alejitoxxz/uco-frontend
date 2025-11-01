@@ -1,9 +1,21 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
-import { createUser, type CreateUserRequest } from '../../api/users'
+import { createUser } from '../../api/users'
 import { getCities, getCountries, getDepartments, type City, type Country, type Department } from '../../api/locations'
 import { getIdTypes, type IdType } from '../../api/idTypes'
+
+interface CreateUserRequest {
+  idType: string
+  idNumber: string
+  firstName: string
+  secondName?: string
+  firstSurname: string
+  secondSurname?: string
+  homeCity: string
+  email: string
+  mobileNumber: string
+}
 
 type FormErrorKey = keyof CreateUserRequest | 'country' | 'department'
 

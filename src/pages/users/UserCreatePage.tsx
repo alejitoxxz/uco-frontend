@@ -1,9 +1,10 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { ChangeEvent, FocusEvent, FormEvent, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUser } from '../../api/users'
 import { getCities, getCountries, getDepartments, type City, type Country, type Department } from '../../api/locations'
 import { getIdTypes, type IdType } from '../../api/idTypes'
+import { EMAIL_REGEX, MOBILE_CO_REGEX, validateUserForm, type UserForm } from '@/utils/validators'
 
 interface CreateUserRequest {
   idType: string
@@ -45,9 +46,37 @@ const FORM_ERROR_KEYS: FormErrorKey[] = [
   'department',
 ]
 
+const USER_FORM_FIELD_MAP: Record<string, keyof UserForm> = {
+  firstName: 'firstName',
+  secondName: 'secondName',
+  firstSurname: 'firstSurname',
+  secondSurname: 'secondSurname',
+  idNumber: 'idNumber',
+  email: 'email',
+  mobileNumber: 'mobile',
+}
+
+const mapValidationErrors = (
+  errors: Partial<Record<keyof UserForm, string>>,
+): Partial<Record<FormErrorKey, string>> => {
+  const mapped: Partial<Record<FormErrorKey, string>> = {}
+
+  if (errors.firstName) mapped.firstName = errors.firstName
+  if (errors.secondName) mapped.secondName = errors.secondName
+  if (errors.firstSurname) mapped.firstSurname = errors.firstSurname
+  if (errors.secondSurname) mapped.secondSurname = errors.secondSurname
+  if (errors.idNumber) mapped.idNumber = errors.idNumber
+  if (errors.email) mapped.email = errors.email
+  if (errors.mobile) mapped.mobileNumber = errors.mobile
+  if (errors.countryId) mapped.country = errors.countryId
+  if (errors.departmentId) mapped.department = errors.departmentId
+  if (errors.cityId) mapped.homeCity = errors.cityId
+
+  return mapped
+}
+
 const REQUIRED_MESSAGE = 'Este campo es obligatorio.'
 const EMAIL_DUPLICATE_MESSAGE = 'Este correo ya está registrado'
-const EMAIL_INVALID_MESSAGE = 'Ingresa un correo electrónico válido.'
 const REVIEW_FIELDS_MESSAGE = 'Revisa los campos marcados antes de continuar.'
 
 const isFormErrorKey = (value: string): value is FormErrorKey =>
@@ -90,6 +119,23 @@ export default function UserCreatePage() {
   const [loadingCities, setLoadingCities] = useState(false)
 
   const navigate = useNavigate()
+
+  const emailPattern = EMAIL_REGEX.source.replace(/^\^|\$$/g, '')
+  const mobilePattern = MOBILE_CO_REGEX.source.replace(/^\^|\$$/g, '')
+
+  const buildUserForm = (overrides: Partial<UserForm> = {}) => ({
+    firstName: formState.firstName,
+    secondName: formState.secondName ?? '',
+    firstSurname: formState.firstSurname,
+    secondSurname: formState.secondSurname ?? '',
+    idNumber: formState.idNumber,
+    email: formState.email,
+    mobile: formState.mobileNumber,
+    countryId: selectedCountry,
+    departmentId: selectedDepartment,
+    cityId: formState.homeCity,
+    ...overrides,
+  })
 
   useEffect(() => {
     let active = true
@@ -223,7 +269,23 @@ export default function UserCreatePage() {
 
   const onFieldChange = (e: ChangeEvent<HTMLInputElement>) => {
     const fieldName = e.target.name as keyof CreateUserRequest
-    const { value } = e.target
+    let { value } = e.target
+
+    if (fieldName === 'idNumber') {
+      value = value.replace(/\D/g, '')
+    } else if (fieldName === 'mobileNumber') {
+      value = value.replace(/\D/g, '').slice(0, 10)
+    } else if (
+      fieldName === 'firstName' ||
+      fieldName === 'secondName' ||
+      fieldName === 'firstSurname' ||
+      fieldName === 'secondSurname'
+    ) {
+      value = value.replace(/\s+/g, ' ')
+    } else if (fieldName === 'email') {
+      value = value.replace(/\s+/g, '').toLowerCase()
+    }
+
     setFormState((state) => ({ ...state, [fieldName]: value }))
     setFieldErrors((prev) => {
       if (!prev[fieldName]) return prev
@@ -232,8 +294,33 @@ export default function UserCreatePage() {
     })
   }
 
+  const handleBlur = (event: FocusEvent<HTMLInputElement>) => {
+    const { name, value } = event.target
+    const userFormField = USER_FORM_FIELD_MAP[name]
+    if (!userFormField) return
+
+    const overrides = { [userFormField]: value } as Partial<UserForm>
+    const { errors } = validateUserForm(buildUserForm(overrides))
+    const mappedErrors = mapValidationErrors(errors)
+    const targetKey =
+      userFormField === 'mobile' ? 'mobileNumber' : (userFormField as FormErrorKey)
+
+    setFieldErrors((prev) => {
+      const next = { ...prev }
+      const message = mappedErrors[targetKey]
+
+      if (message) {
+        next[targetKey] = message
+      } else {
+        delete next[targetKey]
+      }
+
+      return next
+    })
+  }
+
   const handleCountryChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const { value } = event.target
+    const value = event.target.value.trim()
     setLocationsError(null)
     setFailedRequest(null)
     setSelectedCountry(value)
@@ -245,7 +332,7 @@ export default function UserCreatePage() {
   }
 
   const handleDepartmentChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const { value } = event.target
+    const value = event.target.value.trim()
     setLocationsError(null)
     setFailedRequest(null)
     setSelectedDepartment(value)
@@ -256,7 +343,7 @@ export default function UserCreatePage() {
   }
 
   const handleCityChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const { value } = event.target
+    const value = event.target.value.trim()
     setLocationsError(null)
     setFailedRequest(null)
     setFormState((state) => ({ ...state, homeCity: value }))
@@ -287,39 +374,34 @@ export default function UserCreatePage() {
     setErr(null)
     setFieldErrors({})
 
+    const trimmedIdType = formState.idType.trim()
+    const { errors: validationErrors, cleaned } = validateUserForm(
+      buildUserForm({
+        countryId: selectedCountry.trim(),
+        departmentId: selectedDepartment.trim(),
+        cityId: formState.homeCity.trim(),
+      }),
+    )
+
     const formData: CreateUserRequest = {
-      idType: formState.idType.trim(),
-      idNumber: formState.idNumber.trim(),
-      firstName: formState.firstName.trim(),
-      secondName: formState.secondName?.trim() ?? '',
-      firstSurname: formState.firstSurname.trim(),
-      secondSurname: formState.secondSurname?.trim() ?? '',
-      homeCity: formState.homeCity.trim(),
-      email: formState.email.trim(),
-      mobileNumber: formState.mobileNumber.trim(),
+      idType: trimmedIdType,
+      idNumber: cleaned.idNumber,
+      firstName: cleaned.firstName,
+      secondName: cleaned.secondName ?? '',
+      firstSurname: cleaned.firstSurname,
+      secondSurname: cleaned.secondSurname ?? '',
+      homeCity: cleaned.cityId,
+      email: cleaned.email,
+      mobileNumber: cleaned.mobile,
     }
-    const trimmedCountry = selectedCountry.trim()
-    const trimmedDepartment = selectedDepartment.trim()
 
     setFormState(formData)
-    setSelectedCountry(trimmedCountry)
-    setSelectedDepartment(trimmedDepartment)
+    setSelectedCountry(cleaned.countryId)
+    setSelectedDepartment(cleaned.departmentId)
 
-    const nextErrors: Partial<Record<FormErrorKey, string>> = {}
+    const nextErrors = mapValidationErrors(validationErrors)
 
-    if (!formData.idType) nextErrors.idType = REQUIRED_MESSAGE
-    if (!formData.idNumber) nextErrors.idNumber = REQUIRED_MESSAGE
-    if (!formData.firstName) nextErrors.firstName = REQUIRED_MESSAGE
-    if (!formData.firstSurname) nextErrors.firstSurname = REQUIRED_MESSAGE
-    if (!trimmedCountry) nextErrors.country = REQUIRED_MESSAGE
-    if (!trimmedDepartment) nextErrors.department = REQUIRED_MESSAGE
-    if (!formData.homeCity) nextErrors.homeCity = REQUIRED_MESSAGE
-    if (!formData.email) {
-      nextErrors.email = REQUIRED_MESSAGE
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      nextErrors.email = EMAIL_INVALID_MESSAGE
-    }
-    if (!formData.mobileNumber) nextErrors.mobileNumber = REQUIRED_MESSAGE
+    if (!trimmedIdType) nextErrors.idType = REQUIRED_MESSAGE
 
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors)
@@ -343,8 +425,8 @@ export default function UserCreatePage() {
       secondLastName: formData.secondSurname || undefined,
       email: formData.email || undefined,
       mobile: formData.mobileNumber || undefined,
-      countryId: trimmedCountry,
-      departmentId: trimmedDepartment,
+      countryId: cleaned.countryId,
+      departmentId: cleaned.departmentId,
       cityId: formData.homeCity,
     }
 
@@ -399,6 +481,8 @@ export default function UserCreatePage() {
       setSaving(false)
     }
   }
+
+  const hasErrors = Object.keys(fieldErrors).length > 0
 
   return (
     <main className="page">
@@ -489,8 +573,11 @@ export default function UserCreatePage() {
               name="idNumber"
               value={formState.idNumber}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Ingresa el número"
               autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
               required
               aria-invalid={Boolean(fieldErrors.idNumber)}
             />
@@ -509,6 +596,7 @@ export default function UserCreatePage() {
               name="firstName"
               value={formState.firstName}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Ej. Laura"
               autoComplete="given-name"
               required
@@ -529,6 +617,7 @@ export default function UserCreatePage() {
               name="secondName"
               value={formState.secondName ?? ''}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Opcional"
               autoComplete="given-name"
             />
@@ -548,6 +637,7 @@ export default function UserCreatePage() {
               name="firstSurname"
               value={formState.firstSurname}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Ej. González"
               autoComplete="family-name"
               required
@@ -568,6 +658,7 @@ export default function UserCreatePage() {
               name="secondSurname"
               value={formState.secondSurname ?? ''}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Opcional"
               autoComplete="family-name"
             />
@@ -679,8 +770,10 @@ export default function UserCreatePage() {
               name="email"
               value={formState.email}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="usuario@uco.edu.co"
               autoComplete="email"
+              pattern={emailPattern}
               required
               aria-invalid={Boolean(fieldErrors.email)}
             />
@@ -699,8 +792,12 @@ export default function UserCreatePage() {
               name="mobileNumber"
               value={formState.mobileNumber}
               onChange={onFieldChange}
+              onBlur={handleBlur}
               placeholder="Ej. 3001234567"
               autoComplete="tel"
+              inputMode="numeric"
+              pattern={mobilePattern}
+              maxLength={10}
               required
               aria-invalid={Boolean(fieldErrors.mobileNumber)}
             />
@@ -738,7 +835,7 @@ export default function UserCreatePage() {
           <Link to="/users" className="btn btn-secondary">
             Cancelar
           </Link>
-          <button className="btn btn-primary" type="submit" disabled={saving}>
+          <button className="btn btn-primary" type="submit" disabled={saving || hasErrors}>
             {saving ? 'Guardando...' : 'Registrar usuario'}
           </button>
         </div>

@@ -1,7 +1,7 @@
-import { apiClient } from './client'
+import { apiClient } from '@/api/client'
 
 export async function sendVerificationCode(userId: string, channel: 'email' | 'mobile') {
-  return apiClient.post(`/uco-challenge/api/v1/users/${userId}/send-code`, null, {
+  return apiClient.post(`/users/${userId}/send-code`, null, {
     params: { channel },
   })
 }

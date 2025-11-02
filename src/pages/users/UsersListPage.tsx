@@ -58,6 +58,8 @@ const UsersListPage = () => {
     contact: string
     type: 'email' | 'mobile'
   } | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [verificationCode, setVerificationCode] = useState('')
   const location = useLocation()
 
   const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
@@ -236,6 +238,20 @@ const UsersListPage = () => {
     setVerificationContext(null)
   }
 
+  // Función para manejar el clic en el botón de verificación
+  const handleVerificationClick = () => {
+    console.log('DEBUG: Abriendo modal de verificación')
+    setIsModalOpen(true)
+  }
+
+  // Función para manejar el envío del código
+  const handleVerificationSubmit = (code: string) => {
+    console.log('DEBUG: Código recibido:', code)
+    setVerificationCode(code)
+    setIsModalOpen(false)
+    // Aquí va tu lógica para validar el código
+  }
+
   return (
     <main className="page">
       <header className={styles.header}>
@@ -315,13 +331,24 @@ const UsersListPage = () => {
       ) : null}
 
       <VerificationModal
-        show={Boolean(verificationContext)}
+        open={isModalOpen} // Cambiado de show a open
         contact={verificationContext?.contact ?? ''}
         onClose={handleCloseModal}
         onVerified={handleVerificationSuccess}
+        onSubmit={handleVerificationSubmit}
+        title="Verificar Código"
       />
     </main>
   )
 }
 
 export default UsersListPage
+
+interface VerificationModalProps {
+  show: boolean; // Add this line to define the show prop
+  contact: string;
+  onClose: () => void;
+  onVerified: () => void;
+  onSubmit: (code: string) => void;
+  title: string;
+}

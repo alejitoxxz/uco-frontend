@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import { verifyContactCode } from '@/api/verification'
+import styles from './VerificationModal.module.css'
 
 interface VerificationModalProps {
   open: boolean
@@ -26,8 +28,6 @@ export default function VerificationModal({
     if (!open) setCode('')
   }, [open])
 
-  if (!open) return null
-
   const handleConfirm = async () => {
     if (!/^[0-9]{6}$/.test(code)) return
 
@@ -45,12 +45,19 @@ export default function VerificationModal({
     }
   }
 
-  return (
-    <div role="dialog" aria-modal="true" className="modal-backdrop">
-      <div className="modal" role="document">
-        <h3>Verificar {channel === 'email' ? 'correo' : 'móvil'}</h3>
-        <p>Ingresa el código de 6 dígitos enviado a: {targetLabel}</p>
+  if (!open) return null
+
+  const content = (
+    <div className={styles.overlay} role="dialog" aria-modal="true">
+      <div className={styles.container} role="document">
+        <h3 className={styles.title}>Verificar {channel === 'email' ? 'correo' : 'móvil'}</h3>
+        <p className={styles.text}>
+          Ingresa el código de 6 dígitos enviado a <strong>{targetLabel}</strong>
+        </p>
+
         <input
+          className={styles.input}
+          type="text"
           inputMode="numeric"
           maxLength={6}
           value={code}
@@ -58,16 +65,19 @@ export default function VerificationModal({
             const value = event.target.value.replace(/\D/g, '').slice(0, 6)
             setCode(value)
           }}
+          placeholder="000000"
           aria-label="Código de verificación"
         />
-        <div className="modal-actions">
-          <button type="button" onClick={onClose} disabled={submitting}>
+
+        <div className={styles.actions}>
+          <button type="button" onClick={onClose} className={styles.btnCancel} disabled={submitting}>
             Cancelar
           </button>
           <button
             type="button"
             onClick={handleConfirm}
             disabled={submitting || !/^[0-9]{6}$/.test(code)}
+            className={styles.btnConfirm}
           >
             Confirmar
           </button>
@@ -75,4 +85,6 @@ export default function VerificationModal({
       </div>
     </div>
   )
+
+  return createPortal(content, document.body)
 }

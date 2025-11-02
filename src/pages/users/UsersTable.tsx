@@ -16,7 +16,6 @@ const UsersTable = ({ data, onConfirmEmail, onConfirmMobile }: UsersTableProps) 
             <tr>
               <th scope="col">Nombre completo</th>
               <th scope="col">Email</th>
-              <th scope="col">ID</th>
               <th scope="col">Móvil</th>
               <th scope="col">Estado</th>
               <th scope="col">Acciones</th>
@@ -37,7 +36,6 @@ const UsersTable = ({ data, onConfirmEmail, onConfirmMobile }: UsersTableProps) 
                 <tr key={user.id}>
                   <td className={styles.fullName}>{fullName}</td>
                   <td className={styles.email}>{user.email}</td>
-                  <td className={styles.identifier}>{user.id}</td>
                   <td className={styles.mobile}>{formattedMobile}</td>
                   <td className={styles.statusCell}>
                     <div className={styles.statusBadges}>

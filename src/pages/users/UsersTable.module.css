@@ -53,13 +53,6 @@
   font-weight: 500;
 }
 
-.identifier {
-  font-family: 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-    monospace;
-  font-size: 0.85rem;
-  color: #0f172a;
-}
-
 .mobile {
   color: #475569;
 }

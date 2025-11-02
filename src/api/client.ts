@@ -12,6 +12,8 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+export const apiClient = api
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

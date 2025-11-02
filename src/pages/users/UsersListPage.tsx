@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
+import { toast } from 'react-toastify'
 import { getUsers } from '../../api/users'
 import { sendVerificationCode } from '../../api/verification'
 import EmptyState from '../../components/ui/EmptyState'
@@ -43,11 +44,6 @@ const sanitizeSize = (value: string | null) => {
   if (!value) return DEFAULT_SIZE
   const parsed = Number.parseInt(value, 10)
   return PAGE_SIZES.includes(parsed) ? parsed : DEFAULT_SIZE
-}
-
-const resolveToast = () => {
-  if (typeof window === 'undefined') return undefined
-  return (window as Window & { toast?: { success?: (message: string) => void; error?: (message: string) => void } }).toast
 }
 
 const UsersListPage = () => {
@@ -162,6 +158,28 @@ const UsersListPage = () => {
     }
   }, [feedback])
 
+  const handleSendCode = async (userId: string, channel: 'email' | 'mobile') => {
+    try {
+      toast.info(
+        channel === 'mobile'
+          ? 'Enviando código al número registrado...'
+          : 'Enviando código al correo electrónico...'
+      )
+
+      await sendVerificationCode(userId, channel)
+
+      toast.success(
+        channel === 'mobile'
+          ? 'Código enviado por SMS correctamente.'
+          : 'Correo de verificación enviado.'
+      )
+    } catch (error) {
+      toast.error('Error al enviar el código. Intente nuevamente.')
+      console.error(error)
+      throw error
+    }
+  }
+
   const requestVerification = async (user: UserSummary, type: 'email' | 'mobile') => {
     const contactValue =
       type === 'email' ? user.email.trim() : (user.mobileNumber?.toString().trim() ?? '')
@@ -173,13 +191,8 @@ const UsersListPage = () => {
 
     try {
       setFeedback(null)
-      await sendVerificationCode(user.id, type)
-      const toast = resolveToast()
-      const label = contactValue
-      if (toast?.success) {
-        toast.success(`Código enviado a ${label}.`)
-      }
-      setFeedback({ type: 'success', message: `Código enviado a ${label}.` })
+      await handleSendCode(user.id, type)
+      setFeedback({ type: 'success', message: `Código enviado a ${contactValue}.` })
       setVerificationContext({ userId: user.id, contact: contactValue, type })
     } catch (err) {
       console.error(err)

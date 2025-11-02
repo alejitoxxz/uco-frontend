@@ -76,16 +76,16 @@ const UsersTable = ({ data, onConfirmEmail, onConfirmMobile }: UsersTableProps) 
                         className="btn btn-outline"
                         onClick={() => onConfirmMobile(user)}
                         disabled={!canConfirmMobile}
-                        aria-label={`Confirmar móvil de ${displayName}`}
+                        aria-label={`Confirmar número de ${displayName}`}
                         title={
                           mobileConfirmed
-                            ? 'Móvil ya confirmado'
+                            ? 'Número ya confirmado'
                             : mobileNumber
-                              ? 'Confirmar móvil'
+                              ? 'Confirmar número'
                               : 'Número de móvil no disponible'
                         }
                       >
-                        Confirmar móvil
+                        Confirmar número
                       </button>
                     </div>
                   </td>

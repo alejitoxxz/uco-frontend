@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
 import { useAuth0 } from '@auth0/auth0-react'
 import { attachTokenInterceptor } from './api/apiClient'
 import AppRouter from './routes/Router'
+import 'react-toastify/dist/ReactToastify.css'
 import './App.css'
 
 const App = () => {
@@ -49,6 +51,14 @@ const App = () => {
       <div className="app-content">
         <AppRouter />
       </div>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   )
 }

@@ -1,72 +1,78 @@
-import React, { useState } from 'react'
-import { 
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button
-} from '@mui/material'
+import { useEffect, useState } from 'react'
+import { toast } from 'react-toastify'
+import { verifyContactCode } from '@/api/verification'
 
 interface VerificationModalProps {
-  open: boolean // Cambiado de 'show' a 'open'
-  contact?: string
+  open: boolean
   onClose: () => void
-  onVerified?: () => void
-  onSubmit: (code: string) => void
-  title: string
+  userId: string
+  channel: 'email' | 'mobile'
+  targetLabel?: string
+  onVerified: () => void
 }
 
-const VerificationModal: React.FC<VerificationModalProps> = ({
+export default function VerificationModal({
   open,
-  contact,
   onClose,
+  userId,
+  channel,
+  targetLabel,
   onVerified,
-  onSubmit,
-  title
-}) => {
+}: VerificationModalProps) {
   const [code, setCode] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = () => {
-    console.log('DEBUG: Enviando código:', code)
-    onSubmit(code)
-    onVerified?.()
-    setCode('')
+  useEffect(() => {
+    if (!open) setCode('')
+  }, [open])
+
+  if (!open) return null
+
+  const handleConfirm = async () => {
+    if (!/^[0-9]{6}$/.test(code)) return
+
+    try {
+      setSubmitting(true)
+      await verifyContactCode(userId, channel, code)
+      toast.success('Contacto verificado correctamente')
+      onClose()
+      onVerified()
+    } catch (error) {
+      toast.error('No se pudo verificar el código. Intenta nuevamente.')
+      console.error(error)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose}
-    >
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        {contact && (
-          <p>Se enviará un código a: {contact}</p>
-        )}
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Código de verificación"
+    <div role="dialog" aria-modal="true" className="modal-backdrop">
+      <div className="modal" role="document">
+        <h3>Verificar {channel === 'email' ? 'correo' : 'móvil'}</h3>
+        <p>Ingresa el código de 6 dígitos enviado a: {targetLabel}</p>
+        <input
+          inputMode="numeric"
+          maxLength={6}
           value={code}
-          onChange={(e) => setCode(e.target.value)}
-          fullWidth
+          onChange={(event) => {
+            const value = event.target.value.replace(/\D/g, '').slice(0, 6)
+            setCode(value)
+          }}
+          aria-label="Código de verificación"
         />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button 
-          onClick={handleSubmit} 
-          color="primary"
-          variant="contained"
-        >
-          Verificar
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <div className="modal-actions">
+          <button type="button" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={submitting || !/^[0-9]{6}$/.test(code)}
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
-
-export default VerificationModal

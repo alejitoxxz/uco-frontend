@@ -13,6 +13,13 @@ import VerificationModal from '../../components/VerificationModal'
 import UsersTable from './UsersTable'
 import styles from './UsersListPage.module.css'
 
+type ModalState = {
+  open: boolean
+  userId: string
+  channel: 'email' | 'mobile'
+  targetLabel?: string
+}
+
 interface UserSummary {
   id: string
   firstName: string
@@ -53,13 +60,12 @@ const UsersListPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [refreshIndex, setRefreshIndex] = useState(0)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [verificationContext, setVerificationContext] = useState<{
-    userId: string
-    contact: string
-    type: 'email' | 'mobile'
-  } | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [verificationCode, setVerificationCode] = useState('')
+  const [modal, setModal] = useState<ModalState>({
+    open: false,
+    userId: '',
+    channel: 'email',
+    targetLabel: '',
+  })
   const location = useLocation()
 
   const page = useMemo(() => sanitizePage(searchParams.get('page')), [searchParams])
@@ -134,8 +140,12 @@ const UsersListPage = () => {
     setSearchParams(next)
   }
 
-  const handleRetry = () => {
+  const reloadUsers = () => {
     setRefreshIndex((value) => value + 1)
+  }
+
+  const handleRetry = () => {
+    reloadUsers()
   }
 
   const totalUsers = data?.totalElements ?? 0
@@ -182,74 +192,41 @@ const UsersListPage = () => {
     }
   }
 
-  const requestVerification = async (user: UserSummary, type: 'email' | 'mobile') => {
-    const contactValue =
-      type === 'email' ? user.email.trim() : (user.mobileNumber?.toString().trim() ?? '')
-
-    if (!contactValue) {
+  const openVerificationFor = async (
+    userId: string,
+    channel: 'email' | 'mobile',
+    targetLabel?: string,
+  ) => {
+    if (!targetLabel) {
       setFeedback({ type: 'error', message: 'El contacto seleccionado no está disponible.' })
       return
     }
 
     try {
       setFeedback(null)
-      await handleSendCode(user.id, type)
-      setFeedback({ type: 'success', message: `Código enviado a ${contactValue}.` })
-      setVerificationContext({ userId: user.id, contact: contactValue, type })
+      await handleSendCode(userId, channel)
+      setFeedback({ type: 'success', message: `Código enviado a ${targetLabel}.` })
+      setModal({ open: true, userId, channel, targetLabel })
     } catch (err) {
       console.error(err)
       if (isAxiosError(err)) {
         console.error(err.response?.data)
       }
-      let errorMessage = 'No se pudo enviar el código de verificación. Intenta nuevamente.'
-      if (isAxiosError(err)) {
-        const detailed = (err as typeof err & { __niceMessage?: string }).__niceMessage
-        errorMessage = detailed ?? err.message ?? errorMessage
-      } else if (err instanceof Error) {
-        errorMessage = err.message
-      }
-      setFeedback({ type: 'error', message: errorMessage })
+      const detailed = isAxiosError(err)
+        ? (err as typeof err & { __niceMessage?: string }).__niceMessage ?? err.message
+        : err instanceof Error
+          ? err.message
+          : undefined
+      setFeedback({
+        type: 'error',
+        message: detailed ?? 'No se pudo enviar el código de verificación. Intenta nuevamente.',
+      })
     }
   }
 
-  const handleVerificationSuccess = () => {
-    if (!verificationContext) return
-
-    const { userId, type } = verificationContext
-
-    setData((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        users: prev.users.map((item) => {
-          if (item.id !== userId) return item
-          if (type === 'email') {
-            return { ...item, emailConfirmed: true }
-          }
-          return { ...item, mobileNumberConfirmed: true }
-        }),
-      }
-    })
-
+  const handleVerified = () => {
+    reloadUsers()
     setFeedback({ type: 'success', message: 'Contacto verificado correctamente.' })
-  }
-
-  const handleCloseModal = () => {
-    setVerificationContext(null)
-  }
-
-  // Función para manejar el clic en el botón de verificación
-  const handleVerificationClick = () => {
-    console.log('DEBUG: Abriendo modal de verificación')
-    setIsModalOpen(true)
-  }
-
-  // Función para manejar el envío del código
-  const handleVerificationSubmit = (code: string) => {
-    console.log('DEBUG: Código recibido:', code)
-    setVerificationCode(code)
-    setIsModalOpen(false)
-    // Aquí va tu lógica para validar el código
   }
 
   return (
@@ -318,8 +295,16 @@ const UsersListPage = () => {
         {!loading && !error && users.length > 0 && (
           <UsersTable
             data={users}
-            onConfirmEmail={(user) => void requestVerification(user, 'email')}
-            onConfirmMobile={(user) => void requestVerification(user, 'mobile')}
+            onConfirmEmail={(user) =>
+              void openVerificationFor(user.id, 'email', user.email.trim())
+            }
+            onConfirmMobile={(user) =>
+              void openVerificationFor(
+                user.id,
+                'mobile',
+                user.mobileNumber?.toString().trim() || '',
+              )
+            }
           />
         )}
       </div>
@@ -331,24 +316,15 @@ const UsersListPage = () => {
       ) : null}
 
       <VerificationModal
-        open={isModalOpen} // Cambiado de show a open
-        contact={verificationContext?.contact ?? ''}
-        onClose={handleCloseModal}
-        onVerified={handleVerificationSuccess}
-        onSubmit={handleVerificationSubmit}
-        title="Verificar Código"
+        open={modal.open}
+        onClose={() => setModal((state) => ({ ...state, open: false }))}
+        userId={modal.userId}
+        channel={modal.channel}
+        targetLabel={modal.targetLabel}
+        onVerified={handleVerified}
       />
     </main>
   )
 }
 
 export default UsersListPage
-
-interface VerificationModalProps {
-  show: boolean; // Add this line to define the show prop
-  contact: string;
-  onClose: () => void;
-  onVerified: () => void;
-  onSubmit: (code: string) => void;
-  title: string;
-}

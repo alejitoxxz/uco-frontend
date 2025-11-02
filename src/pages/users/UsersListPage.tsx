@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { isAxiosError } from 'axios'
 import { getUsers } from '../../api/users'
+import { sendVerificationCode } from '../../api/verification'
 import EmptyState from '../../components/ui/EmptyState'
 import ErrorAlert from '../../components/ui/ErrorAlert'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -42,6 +43,11 @@ const sanitizeSize = (value: string | null) => {
   if (!value) return DEFAULT_SIZE
   const parsed = Number.parseInt(value, 10)
   return PAGE_SIZES.includes(parsed) ? parsed : DEFAULT_SIZE
+}
+
+const resolveToast = () => {
+  if (typeof window === 'undefined') return undefined
+  return (window as Window & { toast?: { success?: (message: string) => void; error?: (message: string) => void } }).toast
 }
 
 const UsersListPage = () => {
@@ -156,7 +162,7 @@ const UsersListPage = () => {
     }
   }, [feedback])
 
-  const openVerificationModal = (user: UserSummary, type: 'email' | 'mobile') => {
+  const requestVerification = async (user: UserSummary, type: 'email' | 'mobile') => {
     const contactValue =
       type === 'email' ? user.email.trim() : (user.mobileNumber?.toString().trim() ?? '')
 
@@ -165,8 +171,30 @@ const UsersListPage = () => {
       return
     }
 
-    setFeedback(null)
-    setVerificationContext({ userId: user.id, contact: contactValue, type })
+    try {
+      setFeedback(null)
+      await sendVerificationCode(user.id, type)
+      const toast = resolveToast()
+      const label = contactValue
+      if (toast?.success) {
+        toast.success(`Código enviado a ${label}.`)
+      }
+      setFeedback({ type: 'success', message: `Código enviado a ${label}.` })
+      setVerificationContext({ userId: user.id, contact: contactValue, type })
+    } catch (err) {
+      console.error(err)
+      if (isAxiosError(err)) {
+        console.error(err.response?.data)
+      }
+      let errorMessage = 'No se pudo enviar el código de verificación. Intenta nuevamente.'
+      if (isAxiosError(err)) {
+        const detailed = (err as typeof err & { __niceMessage?: string }).__niceMessage
+        errorMessage = detailed ?? err.message ?? errorMessage
+      } else if (err instanceof Error) {
+        errorMessage = err.message
+      }
+      setFeedback({ type: 'error', message: errorMessage })
+    }
   }
 
   const handleVerificationSuccess = () => {
@@ -261,8 +289,8 @@ const UsersListPage = () => {
         {!loading && !error && users.length > 0 && (
           <UsersTable
             data={users}
-            onConfirmEmail={(user) => openVerificationModal(user, 'email')}
-            onConfirmMobile={(user) => openVerificationModal(user, 'mobile')}
+            onConfirmEmail={(user) => void requestVerification(user, 'email')}
+            onConfirmMobile={(user) => void requestVerification(user, 'mobile')}
           />
         )}
       </div>

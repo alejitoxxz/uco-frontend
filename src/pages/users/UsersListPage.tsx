@@ -4,6 +4,7 @@ import { isAxiosError } from 'axios'
 import { toast } from 'react-toastify'
 import { getUsers } from '../../api/users'
 import { sendVerificationCode } from '../../api/verification'
+import { parseApiError } from '../../utils/parseApiError'
 import EmptyState from '../../components/ui/EmptyState'
 import ErrorAlert from '../../components/ui/ErrorAlert'
 import LoadingSpinner from '../../components/ui/LoadingSpinner'
@@ -171,24 +172,29 @@ const UsersListPage = () => {
   }, [feedback])
 
   const handleSendCode = async (userId: string, channel: 'email' | 'mobile') => {
+    const sendingMessage =
+      channel === 'mobile'
+        ? 'Enviando código al número registrado...'
+        : 'Enviando código al correo electrónico...'
+    const successMessage =
+      channel === 'mobile'
+        ? 'Código enviado por SMS correctamente.'
+        : 'Correo de verificación enviado.'
+
     try {
-      toast.info(
-        channel === 'mobile'
-          ? 'Enviando código al número registrado...'
-          : 'Enviando código al correo electrónico...'
-      )
-
+      toast.info(sendingMessage)
       await sendVerificationCode(userId, channel)
-
-      toast.success(
-        channel === 'mobile'
-          ? 'Código enviado por SMS correctamente.'
-          : 'Correo de verificación enviado.'
-      )
+      toast.success(successMessage)
+      return true
     } catch (error) {
-      toast.error('Error al enviar el código. Intente nuevamente.')
+      const detailed = isAxiosError(error)
+        ? ((error as typeof error & { __niceMessage?: string }).__niceMessage ?? parseApiError(error))
+        : error instanceof Error
+          ? error.message
+          : 'Error al enviar el código. Intente nuevamente.'
+      toast.error(detailed)
       console.error(error)
-      throw error
+      return false
     }
   }
 
@@ -202,26 +208,12 @@ const UsersListPage = () => {
       return
     }
 
-    try {
-      setFeedback(null)
-      await handleSendCode(userId, channel)
-      setFeedback({ type: 'success', message: `Código enviado a ${targetLabel}.` })
-      setModal({ open: true, userId, channel, targetLabel })
-    } catch (err) {
-      console.error(err)
-      if (isAxiosError(err)) {
-        console.error(err.response?.data)
-      }
-      const detailed = isAxiosError(err)
-        ? (err as typeof err & { __niceMessage?: string }).__niceMessage ?? err.message
-        : err instanceof Error
-          ? err.message
-          : undefined
-      setFeedback({
-        type: 'error',
-        message: detailed ?? 'No se pudo enviar el código de verificación. Intenta nuevamente.',
-      })
+    setFeedback(null)
+    const sent = await handleSendCode(userId, channel)
+    if (!sent) {
+      return
     }
+    setModal({ open: true, userId, channel, targetLabel })
   }
 
   const handleVerified = () => {

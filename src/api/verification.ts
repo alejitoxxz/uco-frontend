@@ -7,5 +7,5 @@ export async function sendVerificationCode(userId: string, channel: Channel) {
 }
 
 export async function verifyContactCode(userId: string, channel: Channel, code: string) {
-  return apiClient.post('/users/verify-code', { userId, channel, code })
+  return apiClient.post(`/users/${userId}/confirm-code`, { channel, code })
 }

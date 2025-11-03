@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { isAxiosError } from 'axios'
 import { toast } from 'react-toastify'
 import { verifyContactCode } from '@/api/verification'
+import { parseApiError } from '@/utils/parseApiError'
 import styles from './VerificationModal.module.css'
+
+const CODE_REGEX = /^\d{6}$/u
 
 interface VerificationModalProps {
   open: boolean
@@ -23,13 +27,14 @@ export default function VerificationModal({
 }: VerificationModalProps) {
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const isValidCode = CODE_REGEX.test(code)
 
   useEffect(() => {
     if (!open) setCode('')
   }, [open])
 
   const handleConfirm = async () => {
-    if (!/^[0-9]{6}$/.test(code)) return
+    if (!isValidCode) return
 
     try {
       setSubmitting(true)
@@ -38,7 +43,19 @@ export default function VerificationModal({
       onClose()
       onVerified()
     } catch (error) {
-      toast.error('No se pudo verificar el código. Intenta nuevamente.')
+      let message = 'No se pudo verificar el código. Intenta nuevamente.'
+      if (isAxiosError(error)) {
+        const status = error.response?.status
+        const parsed = parseApiError(error)
+        if (status === 400 || status === 500) {
+          message = parsed
+        } else if (parsed) {
+          message = parsed
+        }
+      } else if (error instanceof Error) {
+        message = error.message
+      }
+      toast.error(message)
       console.error(error)
     } finally {
       setSubmitting(false)
@@ -67,6 +84,8 @@ export default function VerificationModal({
           }}
           placeholder="000000"
           aria-label="Código de verificación"
+          pattern="\d{6}"
+          aria-invalid={!isValidCode && code.length > 0}
         />
 
         <div className={styles.actions}>
@@ -76,10 +95,11 @@ export default function VerificationModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={submitting || !/^[0-9]{6}$/.test(code)}
+            disabled={submitting || !isValidCode}
             className={styles.btnConfirm}
+            aria-busy={submitting}
           >
-            Confirmar
+            {submitting ? 'Confirmando...' : 'Confirmar'}
           </button>
         </div>
       </div>

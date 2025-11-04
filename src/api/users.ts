@@ -1,5 +1,4 @@
 import { api } from './client'
-import { parseApiError } from '../utils/parseApiError'
 
 // Payload que viene del formulario actual del front
 export type RegisterUserPayloadUI = {
@@ -57,11 +56,26 @@ export async function createUser(formPayload: RegisterUserPayloadUI) {
   try {
     const { data } = await api.post('/users', payload)
     return data
-  } catch (err: any) {
-    console.error('Error creando usuario:', err?.response?.status, err?.response?.data)
-    const nice = err?.__niceMessage || parseApiError(err)
-    err.userMessage = nice
-    throw err
+  } catch (error: any) {
+    const err = error?.response?.data
+    const apiError = err?.data ?? err
+
+    const message =
+      apiError?.userMessage ??
+      apiError?.message ??
+      'Ocurrió un error al registrar el usuario.'
+
+    const field = apiError?.details?.field
+    const value = apiError?.details?.value
+
+    if (error && typeof error === 'object') {
+      error.userMessage = message
+      error.duplicateField = field
+      error.duplicateValue = value
+    }
+
+    console.error('Error creando usuario:', error?.response?.status, apiError)
+    throw error
   }
 }
 

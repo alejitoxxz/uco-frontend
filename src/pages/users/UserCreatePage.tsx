@@ -2,6 +2,7 @@ import { ChangeEvent, FocusEvent, FormEvent, useEffect, useState } from 'react'
 import { isAxiosError } from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
 import { createUser } from '../../api/users'
+import { toast } from 'react-toastify'
 import { getCities, getCountries, getDepartments, type City, type Country, type Department } from '../../api/locations'
 import { getIdTypes, type IdType } from '../../api/idTypes'
 import { EMAIL_REGEX, MOBILE_CO_REGEX, validateUserForm, type UserForm } from '@/utils/validators'
@@ -24,12 +25,21 @@ interface BackendErrorDetail {
   field?: string
   code?: string
   message?: string
+  value?: string
 }
+
+interface DuplicateFieldDetail {
+  field?: string
+  value?: string
+}
+
+type BackendErrorDetails = BackendErrorDetail[] | DuplicateFieldDetail
 
 interface BackendErrorResponse {
   code?: string
   message?: string
-  details?: BackendErrorDetail[]
+  userMessage?: string
+  details?: BackendErrorDetails
 }
 
 const FORM_ERROR_KEYS: FormErrorKey[] = [
@@ -436,46 +446,97 @@ export default function UserCreatePage() {
       console.debug('Usuario creado con éxito', result)
       // TODO: notificar éxito
       navigate('/users', { replace: true })
-    } catch (err: any) {
-      const body = err?.response?.data as BackendErrorResponse | undefined
-      const msg = err?.userMessage || 'Ocurrió un error. Intenta nuevamente.'
-      console.error('Backend error:', err?.response?.status, body)
+    } catch (error: any) {
+      const responseData = error?.response?.data as BackendErrorResponse | undefined
+      const apiError = (responseData as { data?: BackendErrorResponse } | undefined)?.data ?? responseData
 
-      if (body) {
+      console.error('Backend error:', error?.response?.status, apiError)
+
+      const message =
+        apiError?.userMessage ??
+        apiError?.message ??
+        error?.userMessage ??
+        'Ocurrió un error al registrar el usuario.'
+
+      const details = apiError?.details
+      const detailObject =
+        details && !Array.isArray(details)
+          ? (details as DuplicateFieldDetail)
+          : undefined
+
+      let field = error?.duplicateField as string | undefined
+      let value = error?.duplicateValue as string | undefined
+
+      if (!field && detailObject) {
+        field = detailObject.field
+      }
+
+      if (!value && detailObject) {
+        value = detailObject.value
+      }
+
+      const readable = (f: string) =>
+        f === 'identification'
+          ? 'número de documento'
+          : f === 'phone'
+            ? 'número de teléfono'
+            : f === 'email'
+              ? 'correo'
+              : f
+
+      const extra = field && value ? ` (${readable(field)} duplicado: ${value})` : ''
+
+      toast.error(`${message}${extra}`)
+
+      if (field && value) {
+        console.info(`Dato duplicado: ${field} = ${value}`)
+      }
+
+      setErr(`${message}${extra}`)
+
+      const fieldMap: Record<string, FormErrorKey> = {
+        email: 'email',
+        phone: 'mobileNumber',
+        identification: 'idNumber',
+      }
+
+      const mappedField = field ? fieldMap[field] ?? (isFormErrorKey(field) ? field : undefined) : undefined
+
+      if (mappedField) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [mappedField]: `${message}${extra}`,
+        }))
+
+        if (typeof document !== 'undefined') {
+          document
+            .querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${mappedField}"]`)
+            ?.focus()
+        }
+      } else if (Array.isArray(details)) {
         const backendFieldErrors: Partial<Record<FormErrorKey, string>> = {}
-        if (Array.isArray(body.details)) {
-          body.details.forEach((detail) => {
-            const field = detail.field
-            if (!field) return
-            if (field === 'email' && detail.code === 'duplicate') {
-              backendFieldErrors.email = EMAIL_DUPLICATE_MESSAGE
-              return
-            }
-            if (isFormErrorKey(field)) {
-              backendFieldErrors[field] = detail.message ?? REVIEW_FIELDS_MESSAGE
-              return
-            }
-            if (field in formData) {
-              backendFieldErrors[field as FormErrorKey] =
-                detail.message ?? REVIEW_FIELDS_MESSAGE
-            }
-          })
-        }
 
-        if (body.code === 'UNEXPECTED_ERROR') {
-          window.setTimeout(() => {
-            window.alert('Ocurrió un error inesperado')
-          }, 0)
-        }
+        details.forEach((detail) => {
+          const detailField = detail.field
+          if (!detailField) return
+          if (detailField === 'email' && detail.code === 'duplicate') {
+            backendFieldErrors.email = EMAIL_DUPLICATE_MESSAGE
+            return
+          }
+          if (isFormErrorKey(detailField)) {
+            backendFieldErrors[detailField] = detail.message ?? REVIEW_FIELDS_MESSAGE
+            return
+          }
+          if (detailField in formData) {
+            backendFieldErrors[detailField as FormErrorKey] =
+              detail.message ?? REVIEW_FIELDS_MESSAGE
+          }
+        })
 
         if (Object.keys(backendFieldErrors).length > 0) {
           setFieldErrors(backendFieldErrors)
           setErr(REVIEW_FIELDS_MESSAGE)
-        } else {
-          setErr(msg)
         }
-      } else {
-        setErr(msg)
       }
     } finally {
       setSaving(false)

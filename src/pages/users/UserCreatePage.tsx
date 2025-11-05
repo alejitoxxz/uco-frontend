@@ -611,7 +611,7 @@ export default function UserCreatePage() {
                     className="btn btn-outline"
                     style={{ marginTop: '0.75rem' }}
                     onClick={() => {
-                      void loadIdTypes()
+                      setCountryRequestId((id) => id + 1)
                     }}
                   >
                     Reintentar

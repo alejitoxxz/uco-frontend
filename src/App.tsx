@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ToastContainer, toast } from 'react-toastify'
+import { ToastContainer } from 'react-toastify'
 import { useAuth0 } from '@auth0/auth0-react'
 import { attachTokenInterceptor } from './api/apiClient'
 import AppRouter from './routes/Router'
@@ -34,23 +34,6 @@ const App = () => {
   useEffect(() => {
     attachTokenInterceptor(getAccessTokenSilently)
   }, [getAccessTokenSilently])
-  // Estado para el componente ToastContainer cargado dinámicamente
-  const [ToastComp, setToastComp] = useState<any>(null)
- 
-  useEffect(() => {
-    let mounted = true
-    import('react-toastify')
-      .then(mod => {
-        const Comp = (mod as any).ToastContainer ?? (mod as any).default?.ToastContainer ?? null
-        if (mounted) setToastComp(() => Comp)
-        console.log('DEBUG: react-toastify module ->', mod, 'resolved ToastContainer ->', Comp)
-      })
-      .catch(err => {
-        console.warn('DEBUG: no se pudo cargar react-toastify dinámicamente', err)
-      })
-    return () => { mounted = false }
-  }, [])
- 
   const avatarLetter = (user?.name ?? user?.email ?? '?').charAt(0).toUpperCase()
  
   return (

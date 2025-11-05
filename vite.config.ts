@@ -5,6 +5,7 @@ import { createRequire } from 'module'
 
 const require = createRequire(import.meta.url)
 const reactRouterEntry = require.resolve('react-router')
+const reactRouterDomEntry = require.resolve('react-router-dom')
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -12,8 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      'react-router-dom': 'react-router-dom',
-      'react-router': 'react-router',
+      'react-router-dom': reactRouterDomEntry,
+      'react-router': reactRouterEntry,
     },
   },
   optimizeDeps: {

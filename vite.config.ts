@@ -8,6 +8,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'react-router': 'react-router',
+      'react-router-dom': 'react-router-dom',
     },
+  },
+  optimizeDeps: {
+    include: ['react-router', 'react-router-dom'],
   },
 })
